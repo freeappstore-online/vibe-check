@@ -10,6 +10,7 @@
  */
 
 import { getCheckMeta, type Priority } from "../check-meta.js";
+import { generateArchSVG } from "../runners/architecture.js";
 import type { CheckResult, VibeReport } from "../types.js";
 
 function e(s: string): string {
@@ -127,7 +128,7 @@ export function generateHTML(report: VibeReport): string {
 		const subPages = cs.checks.map((c, i) => {
 			const meta = getCheckMeta(c.name);
 			const sk = (c.details as any).skipped;
-			const details = Object.entries(c.details).filter(([k]) => k !== "skipped" && k !== "reason").map(([k, v]) => {
+			const detailsFiltered = Object.entries(c.details).filter(([k]) => k !== "skipped" && k !== "reason" && k !== "graph").map(([k, v]) => {
 				const d = Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v);
 				return `<div class="kv"><span class="k">${e(k)}</span><span class="v">${e(d)}</span></div>`;
 			}).join("");
@@ -150,7 +151,8 @@ export function generateHTML(report: VibeReport): string {
 			for (const [file, issues] of byFile) {
 				issuesHtml += `<div class="fg"><div class="fn">${fl(file)} <span class="fc">${issues.length}</span></div>`;
 				for (const iss of issues) {
-					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}</div>`;
+					const prompt = `Fix this issue in ${file}${iss.line ? ":" + iss.line : ""}\\n${iss.severity}: ${iss.message}${iss.rule ? " (" + iss.rule + ")" : ""}\\nCheck: ${c.name}`;
+					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" onclick="navigator.clipboard.writeText('${prompt.replace(/'/g, "\\'")}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1000)" title="Copy fix prompt">📋</button></div>`;
 				}
 				issuesHtml += `</div>`;
 			}
@@ -166,7 +168,8 @@ export function generateHTML(report: VibeReport): string {
 <div class="ch-head"><span class="ch-g" style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span><div><b>${e(meta.label)}</b><span class="ch-s">${sk ? "skipped" : c.score + "/100"} · weight ${meta.weight}% · ${c.duration}ms · ${c.issues.length} issues</span></div><span class="pri" style="color:${pc(meta.priority)}">${meta.priority}</span></div>
 ${meta.description ? `<div class="info-panel"><div class="ip-row"><span class="ip-label">What</span><span>${e(meta.description)}</span></div><div class="ip-row"><span class="ip-label">Risk</span><span>${e(meta.risk)}</span></div><div class="ip-row"><span class="ip-label">Fix</span><span>${e(meta.recommendation)}</span></div></div>` : ""}
 ${sk ? `<p class="skip-r">${e((c.details as any).reason || "skipped")}</p>` : ""}
-${details ? `<div class="kvs">${details}</div>` : ""}
+${c.name === "architecture" && !sk ? `<div class="arch-svg">${generateArchSVG(c.details)}</div>` : ""}
+${detailsFiltered ? `<div class="kvs">${detailsFiltered}</div>` : ""}
 ${issuesHtml ? `<div class="iss-list">${issuesHtml}</div>` : '<p style="color:var(--muted);font-size:0.8rem;margin-top:1rem">No issues found.</p>'}
 </div>`;
 		}).join("");
@@ -331,6 +334,10 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 .footer{text-align:center;color:var(--muted);font-size:0.58rem;margin-top:2rem;padding:0.8rem 0;border-top:1px solid var(--border)}
 .footer a{color:var(--muted)}
 .flink{color:var(--accent);text-decoration:none;font-family:"SF Mono",monospace}.flink:hover{text-decoration:underline}
+.arch-svg{margin:1rem 0;overflow-x:auto}
+.arch-svg svg{border-radius:8px}
+.cp-btn{background:none;border:none;cursor:pointer;font-size:0.6rem;opacity:0.3;padding:0 0.2rem;flex-shrink:0}.cp-btn:hover{opacity:1}
+.ir:hover .cp-btn{opacity:0.6}
 @media(max-width:768px){.side{display:none}.content{margin-left:0;padding:1rem}.cats{grid-template-columns:1fr 1fr}.dash{flex-direction:column}}
 </style>
 </head>

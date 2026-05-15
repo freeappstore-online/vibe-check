@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** vibe-check — code health scanner for the AI coding era. */
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { detectRepoUrl, detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
@@ -25,7 +25,7 @@ import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
-const VERSION = "0.9.1";
+const VERSION = "0.10.0";
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const cwd = resolve(args.find((a) => !a.startsWith("--")) || ".");
@@ -116,6 +116,21 @@ async function main() {
 	const trend = computeTrend(report, outputDir);
 
 	if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
+
+	// Save to history before overwriting current report
+	const historyDir = join(outputDir, "history");
+	if (!existsSync(historyDir)) mkdirSync(historyDir, { recursive: true });
+	const historyFile = join(historyDir, `${report.timestamp.replace(/[:.]/g, "-")}.json`);
+	writeFileSync(historyFile, JSON.stringify(report, null, 2));
+
+	// Keep only last 30 history entries
+	const historyFiles = readdirSync(historyDir).filter((f) => f.endsWith(".json")).sort();
+	if (historyFiles.length > 30) {
+		for (const old of historyFiles.slice(0, historyFiles.length - 30)) {
+			try { unlinkSync(join(historyDir, old)); } catch { /* ignore */ }
+		}
+	}
+
 	writeFileSync(join(outputDir, "report.json"), JSON.stringify(report, null, 2));
 	writeFileSync(join(outputDir, "report.html"), generateHTML(report));
 
