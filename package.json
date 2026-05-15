@@ -1,0 +1,50 @@
+{
+  "name": "vibe-check",
+  "version": "0.1.0",
+  "description": "Code health scanner for the AI coding era. One command, full report.",
+  "type": "module",
+  "bin": {
+    "vibe-check": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "lint": "biome check src/",
+    "prepublishOnly": "tsc"
+  },
+  "keywords": [
+    "code-quality",
+    "health-check",
+    "lint",
+    "coverage",
+    "complexity",
+    "duplication",
+    "security",
+    "typescript",
+    "react",
+    "vite"
+  ],
+  "author": "FreeAppStore",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/freeappstore-online/vibe-check"
+  },
+  "homepage": "https://github.com/freeappstore-online/vibe-check#readme",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "jscpd": "^4.0.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.6"
+  }
+}
