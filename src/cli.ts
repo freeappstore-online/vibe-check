@@ -6,14 +6,13 @@ import { join, resolve } from "node:path";
 import { detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
 import { runComplexity } from "./runners/complexity.js";
-import { runCoverage } from "./runners/coverage.js";
 import { runDependencies } from "./runners/dependencies.js";
 import { runDocs } from "./runners/docs.js";
 import { runDuplication } from "./runners/duplication.js";
 import { runLint } from "./runners/lint.js";
 import { runSecrets } from "./runners/secrets.js";
 import { runStructure } from "./runners/structure.js";
-import { runTests } from "./runners/tests.js";
+import { runTesting } from "./runners/testing.js";
 import { runTypeCheck } from "./runners/types-check.js";
 import { runTypeSafety } from "./runners/type-safety.js";
 import { computeScore } from "./score.js";
@@ -68,12 +67,9 @@ async function main() {
 		// Security
 		{ name: "secrets", fn: () => runSecrets(cwd) },
 		{ name: "dependencies", fn: () => runDependencies(cwd, stack) },
+		// Testing (always runs — analyzes test structure even with --skip-tests)
+		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },
 	];
-
-	if (!skipTests) {
-		runners.push({ name: "tests", fn: () => runTests(cwd, stack) });
-		runners.push({ name: "coverage", fn: () => runCoverage(cwd, stack) });
-	}
 
 	for (const runner of runners) {
 		if (!jsonOnly) process.stdout.write("  " + runner.name.padEnd(14));

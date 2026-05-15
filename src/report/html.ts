@@ -13,7 +13,7 @@ function gradeColor(grade: string): string {
 const GROUPS: { label: string; checks: string[] }[] = [
 	{ label: "Foundations", checks: ["structure", "lint", "types", "type-safety"] },
 	{ label: "Quality", checks: ["complexity", "duplication", "docs"] },
-	{ label: "Testing", checks: ["tests", "coverage"] },
+	{ label: "Testing", checks: ["testing"] },
 	{ label: "Security", checks: ["secrets", "dependencies"] },
 ];
 
