@@ -11,6 +11,8 @@ import { runDocs } from "./runners/docs.js";
 import { runDuplication } from "./runners/duplication.js";
 import { runLint } from "./runners/lint.js";
 import { runSecrets } from "./runners/secrets.js";
+import { runSecurity } from "./runners/security.js";
+import { runStandards } from "./runners/standards.js";
 import { runStructure } from "./runners/structure.js";
 import { runTesting } from "./runners/testing.js";
 import { runTypeCheck } from "./runners/types-check.js";
@@ -60,15 +62,17 @@ async function main() {
 		{ name: "lint", fn: () => runLint(cwd, stack) },
 		{ name: "types", fn: () => runTypeCheck(cwd) },
 		{ name: "type-safety", fn: () => runTypeSafety(cwd) },
+		{ name: "standards", fn: () => runStandards(cwd, stack) },
 		// Quality
 		{ name: "complexity", fn: () => runComplexity(cwd) },
 		{ name: "duplication", fn: () => runDuplication(cwd) },
 		{ name: "docs", fn: () => runDocs(cwd) },
+		// Testing
+		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },
 		// Security
 		{ name: "secrets", fn: () => runSecrets(cwd) },
+		{ name: "security", fn: () => runSecurity(cwd) },
 		{ name: "dependencies", fn: () => runDependencies(cwd, stack) },
-		// Testing (always runs — analyzes test structure even with --skip-tests)
-		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },
 	];
 
 	for (const runner of runners) {

@@ -3,16 +3,22 @@
 import type { CheckResult } from "./types.js";
 
 const WEIGHTS: Record<string, number> = {
-	structure: 8,
-	lint: 10,
-	types: 10,
-	"type-safety": 7,
+	// Foundations (25%)
+	structure: 5,
+	lint: 7,
+	types: 6,
+	"type-safety": 4,
+	standards: 3,
+	// Quality (20%)
 	complexity: 8,
 	duplication: 5,
-	docs: 5,
+	docs: 3,
+	// Testing (30%)
+	testing: 30,
+	// Security (25%)
 	secrets: 7,
-	dependencies: 10,
-	testing: 30, // testing is the single most important dimension
+	security: 8,
+	dependencies: 9,
 };
 
 export function computeScore(checks: CheckResult[]): number {
