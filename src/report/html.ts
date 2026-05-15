@@ -15,6 +15,13 @@ import type { CheckResult, VibeReport } from "../types.js";
 function e(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+/** Make a file path a clickable GitHub link if repoUrl is available. */
+function fileLink(path: string, line: number | undefined, repoUrl: string | null, branch: string): string {
+	const clean = path.split(":")[0]!; // strip :line from composite paths
+	if (!repoUrl) return e(path);
+	const href = `${repoUrl}/blob/${branch}/${clean}${line ? "#L" + line : ""}`;
+	return `<a href="${e(href)}" target="_blank" rel="noopener" class="flink">${e(path)}</a>`;
+}
 function gc(grade: string): string {
 	return { A: "#22c55e", B: "#84cc16", C: "#eab308", D: "#f97316", F: "#ef4444" }[grade] || "#6b7280";
 }
@@ -35,6 +42,9 @@ export function generateHTML(report: VibeReport): string {
 	const allChecks = report.checks;
 	const checkMap = new Map(allChecks.map((c) => [c.name, c]));
 	const active = allChecks.filter((c) => !(c.details as any).skipped);
+	const ru = report.meta.repoUrl;
+	const br = report.meta.branch;
+	const fl = (path: string, line?: number) => fileLink(path, line, ru, br);
 	const totalIssues = allChecks.reduce((s, c) => s + c.issues.length, 0);
 	const proj = report.meta.cwd.split("/").pop() || "project";
 
@@ -138,7 +148,7 @@ export function generateHTML(report: VibeReport): string {
 
 			let issuesHtml = "";
 			for (const [file, issues] of byFile) {
-				issuesHtml += `<div class="fg"><div class="fn">${e(file)} <span class="fc">${issues.length}</span></div>`;
+				issuesHtml += `<div class="fg"><div class="fn">${fl(file)} <span class="fc">${issues.length}</span></div>`;
 				for (const iss of issues) {
 					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}</div>`;
 				}
@@ -173,7 +183,7 @@ ${subPages}
 	// All Issues page
 	const allIssues = allChecks.flatMap((c) => c.issues.map((i) => ({ check: c.name, ...i })));
 	const issueRows = allIssues.slice(0, 200).map((i) => {
-		const loc = i.file ? `${e(i.file.split(":")[0]!)}${i.line ? ":" + i.line : ""}` : "";
+		const loc = i.file ? fl(i.file.split(":")[0]!, i.line) : "";
 		return `<tr class="${i.severity}"><td class="is2">${i.severity[0].toUpperCase()}</td><td class="ic2">${e(i.check)}</td><td class="il2">${loc}</td><td>${e(i.message)}</td><td class="iru2">${e(i.rule || "")}</td></tr>`;
 	}).join("");
 
@@ -187,7 +197,7 @@ ${allIssues.length > 200 ? `<p style="color:var(--muted);text-align:center;margi
 	// File heatmap page
 	const fileRows = topFiles.map((f) => {
 		const pct = Math.min(100, f.total * 5);
-		return `<div class="fr"><span class="ff">${e(f.file)}</span><div class="fb"><div class="fbf" style="width:${pct}%;background:${f.errors > 0 ? "var(--fail)" : "var(--warn)"}"></div></div><span class="fv">${f.errors}E ${f.warnings}W</span><span class="fcs">${f.checks.join(", ")}</span></div>`;
+		return `<div class="fr"><span class="ff">${fl(f.file)}</span><div class="fb"><div class="fbf" style="width:${pct}%;background:${f.errors > 0 ? "var(--fail)" : "var(--warn)"}"></div></div><span class="fv">${f.errors}E ${f.warnings}W</span><span class="fcs">${f.checks.join(", ")}</span></div>`;
 	}).join("");
 
 	const filesPage = `<div id="p-files" class="page">
@@ -320,6 +330,7 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 
 .footer{text-align:center;color:var(--muted);font-size:0.58rem;margin-top:2rem;padding:0.8rem 0;border-top:1px solid var(--border)}
 .footer a{color:var(--muted)}
+.flink{color:var(--accent);text-decoration:none;font-family:"SF Mono",monospace}.flink:hover{text-decoration:underline}
 @media(max-width:768px){.side{display:none}.content{margin-left:0;padding:1rem}.cats{grid-template-columns:1fr 1fr}.dash{flex-direction:column}}
 </style>
 </head>

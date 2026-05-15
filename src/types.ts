@@ -28,6 +28,8 @@ export interface VibeReport {
 		node: string;
 		duration: number; // total ms
 		stack: StackInfo;
+		repoUrl: string | null; // GitHub/GitLab URL for file links
+		branch: string;
 	};
 }
 

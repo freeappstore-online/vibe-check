@@ -1,5 +1,6 @@
-/** Auto-detect project stack from files in the working directory. */
+/** Auto-detect project stack and git repo from files in the working directory. */
 
+import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { StackInfo } from "./types.js";
@@ -57,12 +58,21 @@ export function detectStack(cwd: string): StackInfo {
 				? "yarn"
 				: "npm";
 
-	return {
-		language,
-		framework,
-		bundler,
-		testRunner,
-		linter,
-		packageManager,
-	} as StackInfo;
+	return { language, framework, bundler, testRunner, linter, packageManager } as StackInfo;
+}
+
+/** Detect GitHub/GitLab repo URL from git remote. */
+export function detectRepoUrl(cwd: string): { repoUrl: string | null; branch: string } {
+	try {
+		const remote = execSync("git remote get-url origin", { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
+		const branch = execSync("git branch --show-current", { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim() || "main";
+		// Convert SSH to HTTPS
+		let url = remote
+			.replace(/^git@github\.com:/, "https://github.com/")
+			.replace(/^git@gitlab\.com:/, "https://gitlab.com/")
+			.replace(/\.git$/, "");
+		return { repoUrl: url, branch };
+	} catch {
+		return { repoUrl: null, branch: "main" };
+	}
 }

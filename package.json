@@ -1,6 +1,6 @@
 {
   "name": "vibe-check",
-  "version": "0.1.0",
+  "version": "0.9.0",
   "description": "Code health scanner for the AI coding era. One command, full report.",
   "type": "module",
   "bin": {

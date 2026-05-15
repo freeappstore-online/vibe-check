@@ -3,7 +3,7 @@
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { detectStack } from "./detect.js";
+import { detectRepoUrl, detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
 import { runComplexity } from "./runners/complexity.js";
 import { runArchitecture } from "./runners/architecture.js";
@@ -25,7 +25,7 @@ import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
-const VERSION = "0.2.0";
+const VERSION = "0.9.0";
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const cwd = resolve(args.find((a) => !a.startsWith("--")) || ".");
@@ -109,7 +109,7 @@ async function main() {
 		score,
 		grade,
 		checks,
-		meta: { cwd, node: process.version, duration, stack },
+		meta: { cwd, node: process.version, duration, stack, ...detectRepoUrl(cwd) },
 	};
 
 	// Trend comparison (read previous report before overwriting)
