@@ -27,6 +27,7 @@ const GROUPS: { id: string; label: string; checks: string[] }[] = [
 	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "docs"] },
 	{ id: "testing", label: "Testing", checks: ["testing"] },
 	{ id: "security", label: "Security", checks: ["secrets", "security", "dependencies"] },
+	{ id: "llm", label: "LLM Readiness", checks: ["confusion", "context"] },
 ];
 
 export function generateHTML(report: VibeReport): string {

@@ -6,6 +6,8 @@ import { join, resolve } from "node:path";
 import { detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
 import { runComplexity } from "./runners/complexity.js";
+import { runConfusion } from "./runners/confusion.js";
+import { runContext } from "./runners/context.js";
 import { runDependencies } from "./runners/dependencies.js";
 import { runDocs } from "./runners/docs.js";
 import { runDuplication } from "./runners/duplication.js";
@@ -73,6 +75,9 @@ async function main() {
 		{ name: "secrets", fn: () => runSecrets(cwd) },
 		{ name: "security", fn: () => runSecurity(cwd) },
 		{ name: "dependencies", fn: () => runDependencies(cwd, stack) },
+		// LLM Readiness
+		{ name: "confusion", fn: () => runConfusion(cwd) },
+		{ name: "context", fn: () => runContext(cwd) },
 	];
 
 	for (const runner of runners) {

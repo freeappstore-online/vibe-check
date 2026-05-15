@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { CHECK_META, getCheckMeta } from "./check-meta.js";
 
 describe("CHECK_META", () => {
-	const allChecks = ["structure", "lint", "types", "type-safety", "standards", "complexity", "duplication", "docs", "testing", "secrets", "security", "dependencies"];
+	const allChecks = ["structure", "lint", "types", "type-safety", "standards", "complexity", "duplication", "docs", "testing", "secrets", "security", "dependencies", "confusion", "context"];
 
 	it("has metadata for all 12 checks", () => {
 		for (const name of allChecks) {
@@ -21,7 +21,7 @@ describe("CHECK_META", () => {
 	});
 
 	it("has valid categories", () => {
-		const validCats = ["Foundations", "Quality", "Testing", "Security"];
+		const validCats = ["Foundations", "Quality", "Testing", "Security", "LLM Readiness"];
 		for (const meta of Object.values(CHECK_META)) {
 			expect(validCats).toContain(meta.category);
 		}
