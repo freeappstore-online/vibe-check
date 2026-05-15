@@ -1,0 +1,151 @@
+/** Metadata for each check — description, risk, priority, weight, recommendations.
+ *  This is what makes the report educational, not just a scorecard. */
+
+export type Priority = "critical" | "high" | "medium" | "low";
+
+export interface CheckMeta {
+	name: string;
+	label: string;
+	category: string;
+	priority: Priority;
+	weight: number;
+	description: string;
+	risk: string;
+	recommendation: string;
+}
+
+export const CHECK_META: Record<string, CheckMeta> = {
+	structure: {
+		name: "structure",
+		label: "Project Structure",
+		category: "Foundations",
+		priority: "high",
+		weight: 5,
+		description: "Checks for standard project files: package.json, tsconfig.json, LICENSE, README, .gitignore, lockfile. Verifies test-to-source file ratio and that essential scripts (test, build) exist.",
+		risk: "Missing config files cause build failures in CI. Missing LICENSE makes the project legally ambiguous. No lockfile means non-reproducible builds — a dependency update can break production silently.",
+		recommendation: "Ensure every project has package.json, tsconfig.json, LICENSE, .gitignore, and a lockfile. Add 'test' and 'build' scripts. Aim for at least one test file per source file.",
+	},
+	lint: {
+		name: "lint",
+		label: "Lint",
+		category: "Foundations",
+		priority: "high",
+		weight: 7,
+		description: "Runs the project's linter (Biome or ESLint, auto-detected) and counts errors and warnings. Lint rules catch bugs, enforce consistency, and prevent common mistakes before they reach production.",
+		risk: "Unlinted code accumulates inconsistencies and latent bugs. Studies show that projects with active linting have 15-20% fewer production defects (Microsoft Research, 2019).",
+		recommendation: "Fix all lint errors. Warnings can be addressed incrementally. If no linter is configured, add Biome (@biomejs/biome) — it's the fastest linter for TypeScript with zero config needed.",
+	},
+	types: {
+		name: "types",
+		label: "Type Check",
+		category: "Foundations",
+		priority: "critical",
+		weight: 6,
+		description: "Runs tsc --noEmit to find TypeScript compilation errors. Type errors mean the code may crash at runtime in ways the compiler could have prevented.",
+		risk: "Type errors are bugs. Every unresolved type error is a potential runtime crash. TypeScript's type system exists to prevent entire categories of bugs — ignoring it negates its value.",
+		recommendation: "Fix all type errors. If you're migrating from JavaScript, enable strict mode gradually — start with 'strict: true' and fix errors file by file.",
+	},
+	"type-safety": {
+		name: "type-safety",
+		label: "Type Safety",
+		category: "Foundations",
+		priority: "medium",
+		weight: 4,
+		description: "Counts unsafe type patterns: 'as any' casts, explicit ': any' annotations, @ts-ignore directives, @ts-nocheck, and non-null assertions (!.). Each weakens the type system's protection.",
+		risk: "'as any' silences the type checker at that point — any bug the types would have caught now slips through. @ts-ignore and @ts-nocheck disable type checking entirely for a line or file. Accumulated 'any' usage correlates with higher defect density.",
+		recommendation: "Replace 'as any' with proper types or type guards. Use 'unknown' instead of 'any' when the type is genuinely unknown. Remove @ts-ignore comments by fixing the underlying type issue.",
+	},
+	standards: {
+		name: "standards",
+		label: "Code Standards",
+		category: "Foundations",
+		priority: "medium",
+		weight: 4,
+		description: "Checks coding conventions: file naming (PascalCase for components, kebab-case for modules), file size limits (>300 lines flagged), code smells (console.log, var, ==, eval, innerHTML, TODO/FIXME), config hygiene (strict mode), and framework best practices (Tailwind vs inline styles).",
+		risk: "Large files are hard to review and test. console.log in production leaks internal data. var causes hoisting bugs. == causes type coercion surprises. eval/innerHTML are security vulnerabilities. Inconsistent naming makes the codebase harder to navigate.",
+		recommendation: "Split files over 300 lines. Replace console.log with a proper logger or remove it. Use const/let, ===, and safe DOM APIs. Enable TypeScript strict mode.",
+	},
+	complexity: {
+		name: "complexity",
+		label: "Complexity",
+		category: "Quality",
+		priority: "high",
+		weight: 9,
+		description: "Measures cognitive complexity of each function: how many branches (if/else/switch/for/while/ternary/&&/||) and how many lines. Functions over 60 lines or with complexity over 15 are flagged.",
+		risk: "Complex functions are the #1 source of bugs. Research shows defect density increases exponentially with cyclomatic complexity above 10 (McCabe, 1976). Complex code is also harder to review, test, and modify safely.",
+		recommendation: "Extract complex functions into smaller ones. Use early returns to reduce nesting. Replace conditional chains with lookup tables or strategy patterns. Aim for functions under 30 lines with complexity under 10.",
+	},
+	duplication: {
+		name: "duplication",
+		label: "Duplication",
+		category: "Quality",
+		priority: "medium",
+		weight: 5,
+		description: "Detects copy-pasted code blocks of 6+ lines across source files. Duplication is measured as a percentage of total source lines involved in duplicate blocks.",
+		risk: "Duplicated code means bugs must be fixed in multiple places. Miss one copy and the bug persists. DRY (Don't Repeat Yourself) violations increase maintenance cost linearly with each copy.",
+		recommendation: "Extract duplicated logic into shared functions or modules. If two files share the same pattern, create a helper. If the duplication is across repos, consider vendoring a shared module.",
+	},
+	docs: {
+		name: "docs",
+		label: "Documentation",
+		category: "Quality",
+		priority: "low",
+		weight: 3,
+		description: "Checks README quality (existence, length, sections) and JSDoc coverage (what percentage of exported functions/classes have documentation comments).",
+		risk: "Undocumented code is hard to onboard to and easy to misuse. Missing README means new contributors can't get started. Undocumented exports become tribal knowledge that leaves when people leave.",
+		recommendation: "Write a README with: what it does, how to install, how to run, how to develop. Add JSDoc comments to all public exports — even a one-line description helps.",
+	},
+	testing: {
+		name: "testing",
+		label: "Testing",
+		category: "Testing",
+		priority: "critical",
+		weight: 32,
+		description: "Deep assessment of test quality across 6 dimensions: pyramid presence (unit/integration/component/E2E layers), test execution (pass/fail), coverage (statement/branch/line/function), file pairing (test file per source file), test quality (assertion density, mock ratio, snapshot ratio), and E2E tool detection (Playwright/Cypress).",
+		risk: "Code without tests is code you can't safely change. Missing test layers mean entire categories of bugs go undetected: unit tests catch logic bugs, integration tests catch API contract breaks, E2E tests catch user-visible regressions. Low coverage means large portions of code are never exercised.",
+		recommendation: "Follow the testing pyramid: many unit tests, some integration tests, fewer E2E tests. Aim for >80% branch coverage. Every source file should have a corresponding test file. Use Playwright for E2E if you have a web frontend.",
+	},
+	secrets: {
+		name: "secrets",
+		label: "Secrets",
+		category: "Security",
+		priority: "critical",
+		weight: 7,
+		description: "Scans source files for hardcoded secrets: AWS keys, GitHub tokens, Stripe keys, OpenAI/Anthropic API keys, Google API keys, private keys, and generic secret patterns. Checks 13 regex patterns against every non-test source file.",
+		risk: "Hardcoded secrets in source code are the #1 cause of credential leaks. Once pushed to Git, secrets are in the history forever — even if deleted in a later commit. Leaked API keys can be exploited within minutes by automated scanners.",
+		recommendation: "Never hardcode secrets. Use environment variables or a secret manager (Bitwarden, AWS Secrets Manager, Cloudflare Secrets). If a secret was committed, rotate it immediately — deleting the file is not enough.",
+	},
+	security: {
+		name: "security",
+		label: "Security Patterns",
+		category: "Security",
+		priority: "critical",
+		weight: 8,
+		description: "Static analysis for 15 vulnerability patterns mapped to CWE (Common Weakness Enumeration) IDs. Covers: XSS (innerHTML, dangerouslySetInnerHTML, document.write), injection (eval, new Function, SQL template literals, command injection), weak crypto (Math.random for tokens, MD5/SHA1), prototype pollution, path traversal, SSRF, and missing security headers.",
+		risk: "These patterns represent the most commonly exploited vulnerabilities in web applications (OWASP Top 10). A single XSS or injection vulnerability can lead to account takeover, data theft, or complete system compromise.",
+		recommendation: "Replace innerHTML with textContent or DOM APIs. Never use eval(). Use parameterized queries for SQL. Use crypto.randomUUID() instead of Math.random() for tokens. Validate all user input before use in file paths or URLs.",
+	},
+	dependencies: {
+		name: "dependencies",
+		label: "Dependencies",
+		category: "Security",
+		priority: "high",
+		weight: 10,
+		description: "Runs npm/pnpm audit to find known vulnerabilities (CVEs) in dependencies. Also checks for outdated packages — major version gaps indicate potential security debt and breaking API changes.",
+		risk: "Vulnerable dependencies are the most common attack vector for supply chain attacks. 84% of codebases contain at least one known vulnerability in their dependencies (Synopsys OSSRA 2024). Outdated major versions often have unpatched security issues.",
+		recommendation: "Run 'pnpm audit' regularly and fix critical/high vulnerabilities immediately. Keep dependencies updated — use Dependabot or Renovate for automated PRs. Pin versions with a lockfile.",
+	},
+};
+
+export function getCheckMeta(name: string): CheckMeta {
+	return CHECK_META[name] || {
+		name,
+		label: name,
+		category: "Other",
+		priority: "medium" as Priority,
+		weight: 5,
+		description: "",
+		risk: "",
+		recommendation: "",
+	};
+}

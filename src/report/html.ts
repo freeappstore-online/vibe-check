@@ -9,6 +9,7 @@
  * All in one self-contained HTML file using hash routing + show/hide.
  */
 
+import { getCheckMeta, type Priority } from "../check-meta.js";
 import type { CheckResult, VibeReport } from "../types.js";
 
 function e(s: string): string {
@@ -16,6 +17,9 @@ function e(s: string): string {
 }
 function gc(grade: string): string {
 	return { A: "#22c55e", B: "#84cc16", C: "#eab308", D: "#f97316", F: "#ef4444" }[grade] || "#6b7280";
+}
+function pc(p: Priority): string {
+	return { critical: "#ef4444", high: "#f97316", medium: "#eab308", low: "#6b7280" }[p];
 }
 
 const GROUPS: { id: string; label: string; checks: string[] }[] = [
@@ -109,6 +113,7 @@ export function generateHTML(report: VibeReport): string {
 		}).join("");
 
 		const subPages = cs.checks.map((c, i) => {
+			const meta = getCheckMeta(c.name);
 			const sk = (c.details as any).skipped;
 			const details = Object.entries(c.details).filter(([k]) => k !== "skipped" && k !== "reason").map(([k, v]) => {
 				const d = Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v);
@@ -146,7 +151,8 @@ export function generateHTML(report: VibeReport): string {
 			}
 
 			return `<div class="sp${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}">
-<div class="ch-head"><span class="ch-g" style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span><div><b>${e(c.name)}</b><span class="ch-s">${sk ? "skipped" : c.score + "/100"} · ${c.duration}ms · ${c.issues.length} issues</span></div></div>
+<div class="ch-head"><span class="ch-g" style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span><div><b>${e(meta.label)}</b><span class="ch-s">${sk ? "skipped" : c.score + "/100"} · weight ${meta.weight}% · ${c.duration}ms · ${c.issues.length} issues</span></div><span class="pri" style="color:${pc(meta.priority)}">${meta.priority}</span></div>
+${meta.description ? `<div class="info-panel"><div class="ip-row"><span class="ip-label">What</span><span>${e(meta.description)}</span></div><div class="ip-row"><span class="ip-label">Risk</span><span>${e(meta.risk)}</span></div><div class="ip-row"><span class="ip-label">Fix</span><span>${e(meta.recommendation)}</span></div></div>` : ""}
 ${sk ? `<p class="skip-r">${e((c.details as any).reason || "skipped")}</p>` : ""}
 ${details ? `<div class="kvs">${details}</div>` : ""}
 ${issuesHtml ? `<div class="iss-list">${issuesHtml}</div>` : '<p style="color:var(--muted);font-size:0.8rem;margin-top:1rem">No issues found.</p>'}
@@ -208,8 +214,19 @@ code{font-family:"SF Mono",Menlo,monospace;font-size:0.85em}
 .tn:hover{color:var(--text)}
 .tn.active{color:var(--text);border-bottom-color:var(--accent)}
 
+/* Sidebar */
+.side{position:fixed;top:42px;left:0;bottom:0;width:200px;background:#0c0c0f;border-right:1px solid var(--border);overflow-y:auto;padding:0.8rem 0;font-size:0.7rem;z-index:10}
+.side-section{padding:0.3rem 0;border-bottom:1px solid var(--border)}
+.side-section:last-child{border-bottom:none}
+.side-score{font-size:1.4rem;font-weight:900;padding:0.3rem 0.8rem}
+.side-cat{display:block;padding:0.3rem 0.8rem;color:var(--text);font-weight:700;cursor:pointer;text-decoration:none;font-size:0.72rem}
+.side-cat:hover{background:#14141a}
+.side-check{display:block;padding:0.2rem 0.8rem 0.2rem 1.2rem;color:var(--muted);cursor:pointer;text-decoration:none;font-size:0.65rem}
+.side-check:hover{color:var(--text);background:#14141a}
+.side-check span{display:inline-block;width:1rem;font-weight:800;text-align:center}
+
 /* Content */
-.content{max-width:900px;margin:0 auto;padding:2rem}
+.content{max-width:900px;margin-left:200px;padding:2rem}
 .page{display:none;animation:fadeIn 0.15s}
 .page.active{display:block}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -255,6 +272,11 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 .ch-head{display:flex;align-items:center;gap:0.7rem;margin-bottom:0.8rem}
 .ch-g{font-size:2rem;font-weight:900}
 .ch-s{display:block;font-size:0.7rem;color:var(--muted)}
+.pri{font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;padding:0.15rem 0.5rem;border-radius:9999px;border:1px solid currentColor;flex-shrink:0}
+.info-panel{background:#0d0d12;border:1px solid var(--border);border-radius:0.5rem;padding:0.7rem 0.9rem;margin-bottom:1rem;font-size:0.72rem;line-height:1.6}
+.ip-row{margin-bottom:0.4rem;display:flex;gap:0.5rem}
+.ip-row:last-child{margin-bottom:0}
+.ip-label{color:var(--accent);font-weight:700;min-width:2.5rem;flex-shrink:0}
 .skip-r{color:var(--muted);font-style:italic;font-size:0.78rem}
 .kvs{display:flex;gap:0.6rem;flex-wrap:wrap;margin-bottom:1rem}
 .kv{background:var(--card);border:1px solid var(--border);border-radius:0.4rem;padding:0.3rem 0.6rem;font-size:0.7rem}
@@ -296,7 +318,7 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 
 .footer{text-align:center;color:var(--muted);font-size:0.58rem;margin-top:2rem;padding:0.8rem 0;border-top:1px solid var(--border)}
 .footer a{color:var(--muted)}
-@media(max-width:600px){.content{padding:1rem}.cats{grid-template-columns:1fr 1fr}.dash{flex-direction:column}}
+@media(max-width:768px){.side{display:none}.content{margin-left:0;padding:1rem}.cats{grid-template-columns:1fr 1fr}.dash{flex-direction:column}}
 </style>
 </head>
 <body>
@@ -306,6 +328,17 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
   ${topNav}
 </nav>
 
+<aside class="side">
+  <div class="side-section">Score<div class="side-score" style="color:${gc(report.grade)}">${report.grade} ${report.score}</div></div>
+  ${catScores.map((cs) => {
+		const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
+		return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} <span style="color:${clr}">${cs.avg}</span></a>${cs.checks.map((c) => {
+			const sk = (c.details as any).skipped;
+			const meta = getCheckMeta(c.name);
+			return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span> ${e(meta.label)}</a>`;
+		}).join("")}</div>`;
+	}).join("")}
+</aside>
 <div class="content">
   ${overviewPage}
   ${catPages}

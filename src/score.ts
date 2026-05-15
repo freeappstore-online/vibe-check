@@ -1,25 +1,8 @@
-/** Compute weighted composite score from individual check results. */
+/** Compute weighted composite score from individual check results.
+ *  Weights are sourced from check-meta.ts — single source of truth. */
 
+import { CHECK_META, getCheckMeta } from "./check-meta.js";
 import type { CheckResult } from "./types.js";
-
-const WEIGHTS: Record<string, number> = {
-	// Foundations (25%)
-	structure: 5,
-	lint: 7,
-	types: 6,
-	"type-safety": 4,
-	standards: 3,
-	// Quality (20%)
-	complexity: 8,
-	duplication: 5,
-	docs: 3,
-	// Testing (30%)
-	testing: 30,
-	// Security (25%)
-	secrets: 7,
-	security: 8,
-	dependencies: 9,
-};
 
 export function computeScore(checks: CheckResult[]): number {
 	let totalWeight = 0;
@@ -27,10 +10,15 @@ export function computeScore(checks: CheckResult[]): number {
 
 	for (const check of checks) {
 		if ((check.details as Record<string, unknown>).skipped) continue;
-		const weight = WEIGHTS[check.name] || 5;
-		totalWeight += weight;
-		weightedSum += check.score * weight;
+		const meta = getCheckMeta(check.name);
+		totalWeight += meta.weight;
+		weightedSum += check.score * meta.weight;
 	}
 
 	return totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+}
+
+/** Total weight across all checks (should be 100). */
+export function totalWeight(): number {
+	return Object.values(CHECK_META).reduce((s, m) => s + m.weight, 0);
 }
