@@ -25,7 +25,7 @@ import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
-const VERSION = "0.10.0";
+const VERSION = "0.11.0";
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const cwd = resolve(args.find((a) => !a.startsWith("--")) || ".");
@@ -33,6 +33,7 @@ const outputDir = join(cwd, ".vibe-check");
 const jsonOnly = flags.has("--json");
 const ciMode = flags.has("--ci");
 const skipTests = flags.has("--skip-tests");
+const watchMode = flags.has("--watch");
 
 function color(grade: string): string {
 	if (grade === "A") return "\x1b[32m";
@@ -151,12 +152,40 @@ async function main() {
 		process.exit(1);
 	}
 
-	if (!jsonOnly && !ciMode) {
+	if (!jsonOnly && !ciMode && !watchMode) {
 		try {
 			const { execSync } = await import("node:child_process");
 			const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
 			execSync(`${openCmd} "${join(outputDir, "report.html")}"`, { stdio: "ignore" });
 		} catch { /* failed to open browser */ }
+	}
+
+	// Watch mode — re-run on file changes
+	if (watchMode) {
+		const { watch } = await import("node:fs");
+		const srcDirs = ["src", "web/src"].map((d) => join(cwd, d)).filter((d) => existsSync(d));
+		if (srcDirs.length === 0) {
+			console.log("  \x1b[31mNo src/ directory to watch\x1b[0m");
+			process.exit(1);
+		}
+
+		console.log("  \x1b[2mWatching for changes... (Ctrl+C to stop)\x1b[0m");
+		console.log("");
+
+		let debounce: ReturnType<typeof setTimeout> | null = null;
+		for (const dir of srcDirs) {
+			watch(dir, { recursive: true }, (_event, filename) => {
+				if (!filename || filename.includes("node_modules") || filename.includes(".vibe-check")) return;
+				if (debounce) clearTimeout(debounce);
+				debounce = setTimeout(() => {
+					console.log(`  \x1b[2mChanged: ${filename} — re-scanning...\x1b[0m`);
+					main().catch(() => {});
+				}, 500);
+			});
+		}
+
+		// Keep process alive
+		await new Promise(() => {});
 	}
 }
 
