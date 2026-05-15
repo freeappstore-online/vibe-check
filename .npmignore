@@ -1,0 +1,13 @@
+src/
+*.test.ts
+*.test.js
+vitest.config.ts
+biome.json
+tsconfig.json
+.vibe-check/
+test-results/
+coverage/
+TODO.md
+.git/
+.DS_Store
+pnpm-lock.yaml
