@@ -8,15 +8,19 @@ import { generateHTML } from "./report/html.js";
 import { runComplexity } from "./runners/complexity.js";
 import { runCoverage } from "./runners/coverage.js";
 import { runDependencies } from "./runners/dependencies.js";
+import { runDocs } from "./runners/docs.js";
+import { runDuplication } from "./runners/duplication.js";
 import { runLint } from "./runners/lint.js";
 import { runSecrets } from "./runners/secrets.js";
+import { runStructure } from "./runners/structure.js";
 import { runTests } from "./runners/tests.js";
 import { runTypeCheck } from "./runners/types-check.js";
+import { runTypeSafety } from "./runners/type-safety.js";
 import { computeScore } from "./score.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const cwd = resolve(args.find((a) => !a.startsWith("--")) || ".");
@@ -24,6 +28,12 @@ const outputDir = join(cwd, ".vibe-check");
 const jsonOnly = flags.has("--json");
 const ciMode = flags.has("--ci");
 const skipTests = flags.has("--skip-tests");
+
+function color(grade: string): string {
+	if (grade === "A") return "\x1b[32m";
+	if (grade === "B") return "\x1b[33m";
+	return "\x1b[31m";
+}
 
 async function main() {
 	const start = Date.now();
@@ -35,32 +45,27 @@ async function main() {
 		console.log("");
 	}
 
-	// Detect stack
 	const stack = detectStack(cwd);
 	if (!jsonOnly) {
-		console.log(
-			"  stack: " +
-				[
-					stack.language,
-					stack.framework,
-					stack.bundler,
-					stack.testRunner,
-					stack.linter,
-					stack.packageManager,
-				]
-					.filter((v) => v !== "none" && v !== "unknown")
-					.join(" + "),
-		);
+		const parts = [stack.language, stack.framework, stack.bundler, stack.testRunner, stack.linter, stack.packageManager].filter((v) => v !== "none" && v !== "unknown");
+		console.log("  stack: " + parts.join(" + "));
 		console.log("");
 	}
 
-	// Run checks
 	const checks: CheckResult[] = [];
 
+	// All runners grouped by category
 	const runners: { name: string; fn: () => CheckResult }[] = [
+		// Foundations
+		{ name: "structure", fn: () => runStructure(cwd, stack) },
 		{ name: "lint", fn: () => runLint(cwd, stack) },
 		{ name: "types", fn: () => runTypeCheck(cwd) },
+		{ name: "type-safety", fn: () => runTypeSafety(cwd) },
+		// Quality
 		{ name: "complexity", fn: () => runComplexity(cwd) },
+		{ name: "duplication", fn: () => runDuplication(cwd) },
+		{ name: "docs", fn: () => runDocs(cwd) },
+		// Security
 		{ name: "secrets", fn: () => runSecrets(cwd) },
 		{ name: "dependencies", fn: () => runDependencies(cwd, stack) },
 	];
@@ -76,23 +81,18 @@ async function main() {
 		checks.push(result);
 		if (!jsonOnly) {
 			const skipped = (result.details as Record<string, unknown>).skipped;
-			const color = skipped
-				? "\x1b[2m"
-				: result.grade === "A"
-					? "\x1b[32m"
-					: result.grade === "B"
-						? "\x1b[33m"
-						: "\x1b[31m";
-			console.log(
-				`${color}${skipped ? "skip" : result.grade}  ${result.score}/100\x1b[0m  \x1b[2m${result.duration}ms\x1b[0m`,
-			);
+			const c = skipped ? "\x1b[2m" : color(result.grade);
+			const label = skipped ? "skip" : result.grade;
+			const scoreStr = skipped ? "—" : result.score + "/100";
+			const issueStr = result.issues.length > 0 ? `  \x1b[2m${result.issues.length} issues\x1b[0m` : "";
+			console.log(`${c}${label.padEnd(5)}${scoreStr}\x1b[0m  \x1b[2m${result.duration}ms\x1b[0m${issueStr}`);
 		}
 	}
 
-	// Compute composite score
 	const score = computeScore(checks);
 	const grade = gradeFromScore(score);
 	const duration = Date.now() - start;
+	const totalIssues = checks.reduce((s, c) => s + c.issues.length, 0);
 
 	const report: VibeReport = {
 		version: VERSION,
@@ -103,49 +103,32 @@ async function main() {
 		meta: { cwd, node: process.version, duration, stack },
 	};
 
-	// Write output
 	if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
-	writeFileSync(
-		join(outputDir, "report.json"),
-		JSON.stringify(report, null, 2),
-	);
+	writeFileSync(join(outputDir, "report.json"), JSON.stringify(report, null, 2));
 	writeFileSync(join(outputDir, "report.html"), generateHTML(report));
 
 	if (jsonOnly) {
 		console.log(JSON.stringify(report));
 	} else {
-		const gc =
-			grade === "A" ? "\x1b[32m" : grade === "B" ? "\x1b[33m" : "\x1b[31m";
+		const gc = color(grade);
 		console.log("");
-		console.log(
-			`  ${gc}\x1b[1m${grade}\x1b[0m ${gc}${score}/100\x1b[0m  \x1b[2m${duration}ms\x1b[0m`,
-		);
+		console.log(`  ${gc}\x1b[1m${grade}\x1b[0m ${gc}${score}/100\x1b[0m  \x1b[2m${checks.length} checks · ${totalIssues} issues · ${duration}ms\x1b[0m`);
 		console.log("");
-		console.log(
-			"  \x1b[2mReport: " + join(outputDir, "report.html") + "\x1b[0m",
-		);
-		console.log(
-			"  \x1b[2mJSON:   " + join(outputDir, "report.json") + "\x1b[0m",
-		);
+		console.log("  \x1b[2mReport: " + join(outputDir, "report.html") + "\x1b[0m");
+		console.log("  \x1b[2mJSON:   " + join(outputDir, "report.json") + "\x1b[0m");
 		console.log("");
 	}
 
-	// CI mode: exit 1 if below threshold
 	if (ciMode && score < 60) {
 		process.exit(1);
 	}
 
-	// Open report in browser (macOS / Linux)
 	if (!jsonOnly && !ciMode) {
 		try {
 			const { execSync } = await import("node:child_process");
 			const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
-			execSync(`${openCmd} "${join(outputDir, "report.html")}"`, {
-				stdio: "ignore",
-			});
-		} catch {
-			/* failed to open browser — not critical */
-		}
+			execSync(`${openCmd} "${join(outputDir, "report.html")}"`, { stdio: "ignore" });
+		} catch { /* failed to open browser */ }
 	}
 }
 

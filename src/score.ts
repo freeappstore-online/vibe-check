@@ -3,13 +3,17 @@
 import type { CheckResult } from "./types.js";
 
 const WEIGHTS: Record<string, number> = {
-	lint: 15,
-	types: 15,
-	tests: 20,
-	coverage: 15,
-	complexity: 10,
-	dependencies: 15,
-	secrets: 10,
+	structure: 10,
+	lint: 10,
+	types: 12,
+	"type-safety": 8,
+	tests: 15,
+	coverage: 10,
+	complexity: 8,
+	duplication: 5,
+	dependencies: 10,
+	secrets: 7,
+	docs: 5,
 };
 
 export function computeScore(checks: CheckResult[]): number {
@@ -17,8 +21,8 @@ export function computeScore(checks: CheckResult[]): number {
 	let weightedSum = 0;
 
 	for (const check of checks) {
-		if ((check.details as any).skipped) continue;
-		const weight = WEIGHTS[check.name] || 10;
+		if ((check.details as Record<string, unknown>).skipped) continue;
+		const weight = WEIGHTS[check.name] || 5;
 		totalWeight += weight;
 		weightedSum += check.score * weight;
 	}
