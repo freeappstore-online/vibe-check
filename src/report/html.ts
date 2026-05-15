@@ -26,6 +26,7 @@ const GROUPS: { id: string; label: string; checks: string[] }[] = [
 	{ id: "foundations", label: "Foundations", checks: ["structure", "lint", "types", "type-safety", "standards"] },
 	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "docs"] },
 	{ id: "testing", label: "Testing", checks: ["testing"] },
+	{ id: "arch", label: "Architecture", checks: ["architecture"] },
 	{ id: "security", label: "Security", checks: ["secrets", "security", "dependencies"] },
 	{ id: "llm", label: "LLM Readiness", checks: ["confusion", "context"] },
 ];

@@ -6,6 +6,7 @@ import { join, resolve } from "node:path";
 import { detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
 import { runComplexity } from "./runners/complexity.js";
+import { runArchitecture } from "./runners/architecture.js";
 import { runConfusion } from "./runners/confusion.js";
 import { runContext } from "./runners/context.js";
 import { runDependencies } from "./runners/dependencies.js";
@@ -20,6 +21,7 @@ import { runTesting } from "./runners/testing.js";
 import { runTypeCheck } from "./runners/types-check.js";
 import { runTypeSafety } from "./runners/type-safety.js";
 import { computeScore } from "./score.js";
+import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
@@ -75,6 +77,8 @@ async function main() {
 		{ name: "secrets", fn: () => runSecrets(cwd) },
 		{ name: "security", fn: () => runSecurity(cwd) },
 		{ name: "dependencies", fn: () => runDependencies(cwd, stack) },
+		// Architecture
+		{ name: "architecture", fn: () => runArchitecture(cwd) },
 		// LLM Readiness
 		{ name: "confusion", fn: () => runConfusion(cwd) },
 		{ name: "context", fn: () => runContext(cwd) },
@@ -108,6 +112,9 @@ async function main() {
 		meta: { cwd, node: process.version, duration, stack },
 	};
 
+	// Trend comparison (read previous report before overwriting)
+	const trend = computeTrend(report, outputDir);
+
 	if (!existsSync(outputDir)) mkdirSync(outputDir, { recursive: true });
 	writeFileSync(join(outputDir, "report.json"), JSON.stringify(report, null, 2));
 	writeFileSync(join(outputDir, "report.html"), generateHTML(report));
@@ -118,6 +125,7 @@ async function main() {
 		const gc = color(grade);
 		console.log("");
 		console.log(`  ${gc}\x1b[1m${grade}\x1b[0m ${gc}${score}/100\x1b[0m  \x1b[2m${checks.length} checks · ${totalIssues} issues · ${duration}ms\x1b[0m`);
+		if (trend) console.log(formatTrend(trend));
 		console.log("");
 		console.log("  \x1b[2mReport: " + join(outputDir, "report.html") + "\x1b[0m");
 		console.log("  \x1b[2mJSON:   " + join(outputDir, "report.json") + "\x1b[0m");

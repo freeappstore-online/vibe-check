@@ -23,10 +23,10 @@ describe("computeScore", () => {
 	});
 
 	it("computes weighted average", () => {
-		// testing has weight 25, lint has weight 5 — testing dominates
+		// testing has weight 22, lint has weight 5 — testing dominates
 		const result = computeScore([check("testing", 100), check("lint", 0)]);
-		// weighted: (100*25 + 0*5) / (25+5) = 2500/30 ≈ 83
-		expect(result).toBe(83);
+		// weighted: (100*22 + 0*5) / (22+5) = 2200/27 ≈ 81
+		expect(result).toBe(81);
 	});
 
 	it("ignores skipped checks in weight", () => {
