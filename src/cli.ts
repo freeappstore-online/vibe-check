@@ -25,7 +25,7 @@ import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
-const VERSION = "0.9.0";
+const VERSION = "0.9.1";
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const cwd = resolve(args.find((a) => !a.startsWith("--")) || ".");
@@ -45,7 +45,7 @@ async function main() {
 
 	if (!jsonOnly) {
 		console.log("");
-		console.log("  \x1b[1mvibe-check\x1b[0m v" + VERSION);
+		console.log("  \x1b[1m\x1b[38;5;141mvcqa\x1b[0m v" + VERSION);
 		console.log("  \x1b[2m" + cwd + "\x1b[0m");
 		console.log("");
 	}

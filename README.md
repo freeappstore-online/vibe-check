@@ -1,18 +1,18 @@
-# vibe-check
+# VibeCode QA
 
 **Code health scanner for the AI coding era.**
 
 One command. 15 checks. Full report. Zero config.
 
 ```bash
-npx vibe-check
+npx @vibecodeqa/cli
 ```
 
 ![Grade](https://img.shields.io/badge/checks-15-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-first-3178C6) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## What it does
 
-vibe-check scans your TypeScript/JavaScript codebase and produces a scored health report with actionable findings. It auto-detects your stack (React, Vite, vitest, Biome, etc.) and runs 15 checks across 6 categories.
+vcqa scans your TypeScript/JavaScript codebase and produces a scored health report with actionable findings. It auto-detects your stack (React, Vite, vitest, Biome, etc.) and runs 15 checks across 6 categories.
 
 The output is a self-contained HTML report with radar charts, architecture diagrams, file heatmaps, and drill-down issue lists — all navigable via sidebar and tab navigation.
 
@@ -20,19 +20,19 @@ The output is a self-contained HTML report with radar charts, architecture diagr
 
 ```bash
 # Scan current directory (runs tests + coverage)
-npx vibe-check
+npx @vibecodeqa/cli
 
 # Fast mode (skip test execution)
-npx vibe-check --skip-tests
+npx @vibecodeqa/cli --skip-tests
 
 # CI mode (exit code 1 if score < 60)
-npx vibe-check --ci
+npx @vibecodeqa/cli --ci
 
 # JSON output (pipe to other tools)
-npx vibe-check --json
+npx @vibecodeqa/cli --json
 
 # Scan a specific directory
-npx vibe-check /path/to/project
+npx @vibecodeqa/cli /path/to/project
 ```
 
 Output goes to `.vibe-check/`:
@@ -123,7 +123,7 @@ Each check produces a score from 0-100. The composite score is a weighted averag
 
 ## Trend tracking
 
-vibe-check reads the previous `.vibe-check/report.json` on each run and shows:
+vcqa reads the previous `.vibe-check/report.json` on each run and shows:
 - Score change (↑ improved / ↓ declined)
 - Per-check deltas
 - New vs. fixed issue counts
@@ -170,5 +170,5 @@ MIT — Free forever as a CLI tool.
 ## Links
 
 - **GitHub:** https://github.com/freeappstore-online/vibe-check
-- **Website:** https://vibechecker.online (coming soon)
+- **Website:** https://vibecodeqa.online
 - **Issues:** https://github.com/freeappstore-online/vibe-check/issues
