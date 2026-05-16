@@ -75,7 +75,7 @@ async function main() {
 		// Quality
 		{ name: "complexity", fn: () => runComplexity(cwd) },
 		{ name: "duplication", fn: () => runDuplication(cwd) },
-		{ name: "error-handling", fn: () => runErrorHandling(cwd) },
+		{ name: "error-handling", fn: () => runErrorHandling(cwd, stack) },
 		{ name: "docs", fn: () => runDocs(cwd) },
 		// Testing
 		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },

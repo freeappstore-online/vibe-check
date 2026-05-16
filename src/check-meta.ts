@@ -75,6 +75,16 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		recommendation:
 			"Split files over 300 lines. Replace console.log with a proper logger or remove it. Use const/let, ===, and safe DOM APIs. Enable TypeScript strict mode.",
 	},
+	"error-handling": {
+		name: "error-handling",
+		label: "Error Handling",
+		category: "Quality",
+		priority: "high",
+		weight: 2,
+		description: "Detects poor error handling: empty catch blocks, throw with string literals, catch-and-rethrow without context, Promise.then() without .catch(), missing React Error Boundaries.",
+		risk: "Empty catch blocks silently swallow errors. throw 'string' loses stack traces. Missing Error Boundaries in React cause the entire app to crash on render errors.",
+		recommendation: "Handle or log every catch. Use throw new Error() for stack traces. Add Error Boundaries in React. Chain .catch() on promises.",
+	},
 	complexity: {
 		name: "complexity",
 		label: "Complexity",
@@ -98,18 +108,6 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		risk: "Duplicated code means bugs must be fixed in multiple places. Miss one copy and the bug persists. DRY (Don't Repeat Yourself) violations increase maintenance cost linearly with each copy.",
 		recommendation:
 			"Extract duplicated logic into shared functions or modules. If two files share the same pattern, create a helper. If the duplication is across repos, consider vendoring a shared module.",
-	},
-	"error-handling": {
-		name: "error-handling",
-		label: "Error Handling",
-		category: "Quality",
-		priority: "high",
-		weight: 2,
-		description:
-			"Checks for poor error handling patterns: empty catch blocks, comment-only catches, throw with string literals instead of Error objects, catch-and-rethrow without context, promise chains without .catch(), and missing React Error Boundaries.",
-		risk: "Empty catch blocks silently swallow errors, making bugs invisible. Throwing strings instead of Error objects loses stack traces. Missing Error Boundaries in React cause the entire app to crash on any runtime error. Unhandled promise rejections can cause silent failures or process crashes.",
-		recommendation:
-			"Always handle or log errors in catch blocks. Use throw new Error(...) for proper stack traces. Add Error Boundaries at route or feature level in React apps. Chain .catch() on promise chains or use try/catch with async/await.",
 	},
 	docs: {
 		name: "docs",
