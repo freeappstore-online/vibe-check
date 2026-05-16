@@ -31,11 +31,20 @@ export function runContext(cwd: string): CheckResult {
 	for (const dir of dirs) {
 		try {
 			collectFiles(join(cwd, dir), cwd, files);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 
 	if (files.length === 0) {
-		return { name: "context", score: 100, grade: "A", details: { skipped: true, reason: "no source files" }, issues: [], duration: Date.now() - start };
+		return {
+			name: "context",
+			score: 100,
+			grade: "A",
+			details: { skipped: true, reason: "no source files" },
+			issues: [],
+			duration: Date.now() - start,
+		};
 	}
 
 	let highTokenFiles = 0;
@@ -49,7 +58,12 @@ export function runContext(cwd: string): CheckResult {
 		totalTokens += f.tokens;
 		if (f.tokens > MAX_FILE_TOKENS) {
 			highTokenFiles++;
-			issues.push({ severity: "warning", message: `~${f.tokens} tokens (>${MAX_FILE_TOKENS}) — large context cost for LLMs`, file: f.path, rule: "high-token-count" });
+			issues.push({
+				severity: "warning",
+				message: `~${f.tokens} tokens (>${MAX_FILE_TOKENS}) — large context cost for LLMs`,
+				file: f.path,
+				rule: "high-token-count",
+			});
 		}
 	}
 
@@ -58,7 +72,12 @@ export function runContext(cwd: string): CheckResult {
 		totalImports += f.imports.length;
 		if (f.imports.length > MAX_IMPORTS) {
 			heavyImportFiles++;
-			issues.push({ severity: "warning", message: `${f.imports.length} imports (>${MAX_IMPORTS}) — consider splitting or co-locating`, file: f.path, rule: "heavy-imports" });
+			issues.push({
+				severity: "warning",
+				message: `${f.imports.length} imports (>${MAX_IMPORTS}) — consider splitting or co-locating`,
+				file: f.path,
+				rule: "heavy-imports",
+			});
 		}
 	}
 
@@ -92,7 +111,12 @@ export function runContext(cwd: string): CheckResult {
 		const exportCount = (f.content.match(/\bexport\s+/g) || []).length;
 		if (f.imports.length > 8 && exportCount <= 1) {
 			contextSinks++;
-			issues.push({ severity: "warning", message: `${f.imports.length} imports but only ${exportCount} export — hard to understand in isolation`, file: f.path, rule: "context-sink" });
+			issues.push({
+				severity: "warning",
+				message: `${f.imports.length} imports but only ${exportCount} export — hard to understand in isolation`,
+				file: f.path,
+				rule: "context-sink",
+			});
 		}
 	}
 
@@ -155,7 +179,7 @@ function resolveImport(fromPath: string, importPath: string): string | null {
 		if (resolved.endsWith(ext.replace(".", ""))) return resolved;
 	}
 	// Return with .ts as default assumption
-	return resolved + ".ts";
+	return `${resolved}.ts`;
 }
 
 // ── Cycle detection (DFS) ──
@@ -211,7 +235,7 @@ function collectFiles(dir: string, cwd: string, out: { path: string; content: st
 			const ext = extname(entry);
 			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
 				const content = readFileSync(full, "utf-8");
-				const relPath = full.replace(cwd + "/", "");
+				const relPath = full.replace(`${cwd}/`, "");
 				const imports = parseImports(content);
 				const tokens = Math.round(content.length / CHARS_PER_TOKEN);
 				out.push({ path: relPath, content, imports, tokens });

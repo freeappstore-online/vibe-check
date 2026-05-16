@@ -26,37 +26,15 @@ export function detectStack(cwd: string): StackInfo {
 				? "javascript"
 				: "unknown";
 
-	const framework = allDeps.react
-		? "react"
-		: allDeps.vue
-			? "vue"
-			: allDeps.svelte
-				? "svelte"
-				: "none";
+	const framework = allDeps.react ? "react" : allDeps.vue ? "vue" : allDeps.svelte ? "svelte" : "none";
 
-	const bundler = allDeps.vite
-		? "vite"
-		: allDeps.webpack
-			? "webpack"
-			: allDeps.esbuild
-				? "esbuild"
-				: "none";
+	const bundler = allDeps.vite ? "vite" : allDeps.webpack ? "webpack" : allDeps.esbuild ? "esbuild" : "none";
 
 	const testRunner = allDeps.vitest ? "vitest" : allDeps.jest ? "jest" : "none";
 
-	const linter = allDeps["@biomejs/biome"]
-		? "biome"
-		: allDeps.eslint
-			? "eslint"
-			: "none";
+	const linter = allDeps["@biomejs/biome"] ? "biome" : allDeps.eslint ? "eslint" : "none";
 
-	const packageManager = has("pnpm-lock.yaml")
-		? "pnpm"
-		: has("bun.lockb")
-			? "bun"
-			: has("yarn.lock")
-				? "yarn"
-				: "npm";
+	const packageManager = has("pnpm-lock.yaml") ? "pnpm" : has("bun.lockb") ? "bun" : has("yarn.lock") ? "yarn" : "npm";
 
 	return { language, framework, bundler, testRunner, linter, packageManager } as StackInfo;
 }
@@ -67,7 +45,7 @@ export function detectRepoUrl(cwd: string): { repoUrl: string | null; branch: st
 		const remote = execSync("git remote get-url origin", { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim();
 		const branch = execSync("git branch --show-current", { cwd, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }).trim() || "main";
 		// Convert SSH to HTTPS
-		let url = remote
+		const url = remote
 			.replace(/^git@github\.com:/, "https://github.com/")
 			.replace(/^git@gitlab\.com:/, "https://gitlab.com/")
 			.replace(/\.git$/, "");

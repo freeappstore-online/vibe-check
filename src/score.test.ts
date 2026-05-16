@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { computeScore } from "./score.js";
 import type { CheckResult } from "./types.js";
 
@@ -59,10 +59,18 @@ describe("computeScore", () => {
 
 	it("perfect score when all checks score 100", () => {
 		const checks = [
-			check("structure", 100), check("lint", 100), check("types", 100),
-			check("type-safety", 100), check("standards", 100), check("complexity", 100),
-			check("duplication", 100), check("docs", 100), check("testing", 100),
-			check("secrets", 100), check("security", 100), check("dependencies", 100),
+			check("structure", 100),
+			check("lint", 100),
+			check("types", 100),
+			check("type-safety", 100),
+			check("standards", 100),
+			check("complexity", 100),
+			check("duplication", 100),
+			check("docs", 100),
+			check("testing", 100),
+			check("secrets", 100),
+			check("security", 100),
+			check("dependencies", 100),
 		];
 		expect(computeScore(checks)).toBe(100);
 	});

@@ -9,21 +9,13 @@ export function runLint(cwd: string, stack: StackInfo): CheckResult {
 	const issues: Issue[] = [];
 
 	if (stack.linter === "biome") {
-		const { stdout } = run(
-			"npx biome check src/ --reporter=json 2>/dev/null || true",
-			cwd,
-		);
+		const { stdout } = run("npx biome check src/ --reporter=json 2>/dev/null || true", cwd);
 		try {
 			const data = JSON.parse(stdout);
 			const diagnostics = data.diagnostics || [];
 			for (const d of diagnostics) {
 				issues.push({
-					severity:
-						d.severity === "error"
-							? "error"
-							: d.severity === "warning"
-								? "warning"
-								: "info",
+					severity: d.severity === "error" ? "error" : d.severity === "warning" ? "warning" : "info",
 					message: d.description || d.message || "lint issue",
 					file: d.location?.path,
 					line: d.location?.span?.start?.line,
@@ -34,16 +26,11 @@ export function runLint(cwd: string, stack: StackInfo): CheckResult {
 			// biome may not output valid JSON on some errors — count from summary
 			const errors = stdout.match(/Found (\d+) error/)?.[1] || "0";
 			const warnings = stdout.match(/Found (\d+) warning/)?.[1] || "0";
-			for (let i = 0; i < parseInt(errors); i++)
-				issues.push({ severity: "error", message: "lint error" });
-			for (let i = 0; i < parseInt(warnings); i++)
-				issues.push({ severity: "warning", message: "lint warning" });
+			for (let i = 0; i < parseInt(errors, 10); i++) issues.push({ severity: "error", message: "lint error" });
+			for (let i = 0; i < parseInt(warnings, 10); i++) issues.push({ severity: "warning", message: "lint warning" });
 		}
 	} else if (stack.linter === "eslint") {
-		const { stdout } = run(
-			"npx eslint src/ --format json 2>/dev/null || true",
-			cwd,
-		);
+		const { stdout } = run("npx eslint src/ --format json 2>/dev/null || true", cwd);
 		try {
 			const files = JSON.parse(stdout);
 			for (const file of files) {

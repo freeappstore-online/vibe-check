@@ -1,6 +1,6 @@
 /** Documentation check — README, JSDoc, code comments. */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
@@ -40,7 +40,9 @@ export function runDocs(cwd: string): CheckResult {
 	for (const dir of dirs) {
 		try {
 			collectFiles(join(cwd, dir), files);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 
 	let totalExports = 0;
@@ -52,7 +54,12 @@ export function runDocs(cwd: string): CheckResult {
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i].trim();
-			if (line.startsWith("export function ") || line.startsWith("export async function ") || line.startsWith("export class ") || line.startsWith("export interface ")) {
+			if (
+				line.startsWith("export function ") ||
+				line.startsWith("export async function ") ||
+				line.startsWith("export class ") ||
+				line.startsWith("export interface ")
+			) {
 				totalExports++;
 				// Check if preceded by a JSDoc or // comment
 				const prevLine = i > 0 ? lines[i - 1].trim() : "";
@@ -67,7 +74,11 @@ export function runDocs(cwd: string): CheckResult {
 		const pct = Math.round((documentedExports / totalExports) * 100);
 		exportDocScore = pct;
 		if (pct < 30) {
-			issues.push({ severity: "warning", message: `Only ${pct}% of exports have documentation (${documentedExports}/${totalExports})`, rule: "undocumented-exports" });
+			issues.push({
+				severity: "warning",
+				message: `Only ${pct}% of exports have documentation (${documentedExports}/${totalExports})`,
+				rule: "undocumented-exports",
+			});
 		}
 	} else {
 		exportDocScore = 100; // no exports = nothing to document
@@ -79,7 +90,12 @@ export function runDocs(cwd: string): CheckResult {
 		name: "docs",
 		score,
 		grade: gradeFromScore(score),
-		details: { readmeLines: existsSync(readmePath) ? readFileSync(readmePath, "utf-8").split("\n").length : 0, totalExports, documentedExports, documentedPct: totalExports > 0 ? Math.round((documentedExports / totalExports) * 100) + "%" : "n/a" },
+		details: {
+			readmeLines: existsSync(readmePath) ? readFileSync(readmePath, "utf-8").split("\n").length : 0,
+			totalExports,
+			documentedExports,
+			documentedPct: totalExports > 0 ? `${Math.round((documentedExports / totalExports) * 100)}%` : "n/a",
+		},
 		issues,
 		duration: Date.now() - start,
 	};

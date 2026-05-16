@@ -2,11 +2,7 @@
 
 import { execSync } from "node:child_process";
 
-export function run(
-	cmd: string,
-	cwd: string,
-	timeout = 60_000,
-): { stdout: string; ok: boolean } {
+export function run(cmd: string, cwd: string, timeout = 60_000): { stdout: string; ok: boolean } {
 	try {
 		const stdout = execSync(cmd, {
 			cwd,
@@ -20,11 +16,7 @@ export function run(
 	}
 }
 
-export function runJSON<T>(
-	cmd: string,
-	cwd: string,
-	timeout = 60_000,
-): T | null {
+export function runJSON<T>(cmd: string, cwd: string, timeout = 60_000): T | null {
 	const { stdout } = run(cmd, cwd, timeout);
 	try {
 		return JSON.parse(stdout) as T;

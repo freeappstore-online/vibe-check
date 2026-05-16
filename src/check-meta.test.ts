@@ -1,8 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { CHECK_META, getCheckMeta } from "./check-meta.js";
 
 describe("CHECK_META", () => {
-	const allChecks = ["structure", "lint", "types", "type-safety", "standards", "complexity", "duplication", "docs", "testing", "secrets", "security", "dependencies", "architecture", "confusion", "context"];
+	const allChecks = [
+		"structure",
+		"lint",
+		"types",
+		"type-safety",
+		"standards",
+		"complexity",
+		"duplication",
+		"docs",
+		"testing",
+		"secrets",
+		"security",
+		"dependencies",
+		"architecture",
+		"confusion",
+		"context",
+	];
 
 	it("has metadata for all 12 checks", () => {
 		for (const name of allChecks) {

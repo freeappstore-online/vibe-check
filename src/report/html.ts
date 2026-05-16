@@ -20,7 +20,7 @@ function e(s: string): string {
 function fileLink(path: string, line: number | undefined, repoUrl: string | null, branch: string): string {
 	const clean = path.split(":")[0]!;
 	if (!repoUrl || !/^https?:\/\//.test(repoUrl)) return e(path);
-	const href = `${repoUrl}/blob/${branch}/${clean}${line ? "#L" + line : ""}`;
+	const href = `${repoUrl}/blob/${branch}/${clean}${line ? `#L${line}` : ""}`;
 	return `<a href="${e(href)}" target="_blank" rel="noopener" class="flink">${e(path)}</a>`;
 }
 function gc(grade: string): string {
@@ -89,18 +89,25 @@ export function generateHTML(report: VibeReport): string {
 
 	// Overview page
 	const ringPct = report.score;
-	const barChart = active.sort((a, b) => a.score - b.score).map((c) => {
-		return `<div class="brow"><span class="bl">${e(c.name)}</span><div class="bb"><div class="bf" style="width:${c.score}%;background:${gc(c.grade)}"></div></div><span class="bv" style="color:${gc(c.grade)}">${c.grade} ${c.score}</span></div>`;
-	}).join("");
+	const barChart = active
+		.sort((a, b) => a.score - b.score)
+		.map((c) => {
+			return `<div class="brow"><span class="bl">${e(c.name)}</span><div class="bb"><div class="bf" style="width:${c.score}%;background:${gc(c.grade)}"></div></div><span class="bv" style="color:${gc(c.grade)}">${c.grade} ${c.score}</span></div>`;
+		})
+		.join("");
 
-	const catCards = catScores.map((cs) => {
-		const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
-		const mini = cs.checks.map((c) => {
-			const sk = (c.details as any).skipped;
-			return `<span class="mc" style="color:${sk ? "#555" : gc(c.grade)}" title="${e(c.name)}: ${sk ? "skip" : c.score}">${sk ? "—" : c.grade}</span>`;
-		}).join("");
-		return `<div class="cc" onclick="go('${cs.id}')"><div class="cc-s" style="color:${clr}">${cs.avg}</div><div class="cc-l">${cs.label}</div><div class="cc-m">${mini}</div></div>`;
-	}).join("");
+	const catCards = catScores
+		.map((cs) => {
+			const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
+			const mini = cs.checks
+				.map((c) => {
+					const sk = (c.details as any).skipped;
+					return `<span class="mc" style="color:${sk ? "#555" : gc(c.grade)}" title="${e(c.name)}: ${sk ? "skip" : c.score}">${sk ? "—" : c.grade}</span>`;
+				})
+				.join("");
+			return `<div class="cc" onclick="go('${cs.id}')"><div class="cc-s" style="color:${clr}">${cs.avg}</div><div class="cc-l">${cs.label}</div><div class="cc-m">${mini}</div></div>`;
+		})
+		.join("");
 
 	const radarSvg = buildRadar(catScores.map((cs) => ({ label: cs.label, score: cs.avg })));
 
@@ -115,65 +122,75 @@ export function generateHTML(report: VibeReport): string {
 <div class="cats">${catCards}</div>
 <h3>All Checks</h3>
 <div class="bars">${barChart}</div>
-<div class="stack">${Object.entries(report.meta.stack).filter(([, v]) => v !== "none" && v !== "unknown").map(([k, v]) => `<span>${k}: <b>${v}</b></span>`).join("")}</div>
+<div class="stack">${Object.entries(report.meta.stack)
+		.filter(([, v]) => v !== "none" && v !== "unknown")
+		.map(([k, v]) => `<span>${k}: <b>${v}</b></span>`)
+		.join("")}</div>
 </div>`;
 
 	// Category pages (with sub-nav tabs for each check)
 	let catPages = "";
 	for (const cs of catScores) {
-		const subNav = cs.checks.map((c, i) => {
-			const sk = (c.details as any).skipped;
-			return `<a class="sn${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}" onclick="sub(this,'${cs.id}')">${e(c.name)} <span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span></a>`;
-		}).join("");
+		const subNav = cs.checks
+			.map((c, i) => {
+				const sk = (c.details as any).skipped;
+				return `<a class="sn${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}" onclick="sub(this,'${cs.id}')">${e(c.name)} <span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span></a>`;
+			})
+			.join("");
 
-		const subPages = cs.checks.map((c, i) => {
-			const meta = getCheckMeta(c.name);
-			const sk = (c.details as any).skipped;
-			const detailsFiltered = Object.entries(c.details).filter(([k]) => k !== "skipped" && k !== "reason" && k !== "graph").map(([k, v]) => {
-				const d = Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v);
-				return `<div class="kv"><span class="k">${e(k)}</span><span class="v">${e(d)}</span></div>`;
-			}).join("");
+		const subPages = cs.checks
+			.map((c, i) => {
+				const meta = getCheckMeta(c.name);
+				const sk = (c.details as any).skipped;
+				const detailsFiltered = Object.entries(c.details)
+					.filter(([k]) => k !== "skipped" && k !== "reason" && k !== "graph")
+					.map(([k, v]) => {
+						const d = Array.isArray(v) ? v.join(", ") : typeof v === "object" ? JSON.stringify(v) : String(v);
+						return `<div class="kv"><span class="k">${e(k)}</span><span class="v">${e(d)}</span></div>`;
+					})
+					.join("");
 
-			// Group issues by file
-			const byFile = new Map<string, typeof c.issues>();
-			const noFile: typeof c.issues = [];
-			for (const iss of c.issues) {
-				const f = iss.file?.split(":")[0];
-				if (f) {
-					const arr = byFile.get(f) || [];
-					arr.push(iss);
-					byFile.set(f, arr);
-				} else {
-					noFile.push(iss);
+				// Group issues by file
+				const byFile = new Map<string, typeof c.issues>();
+				const noFile: typeof c.issues = [];
+				for (const iss of c.issues) {
+					const f = iss.file?.split(":")[0];
+					if (f) {
+						const arr = byFile.get(f) || [];
+						arr.push(iss);
+						byFile.set(f, arr);
+					} else {
+						noFile.push(iss);
+					}
 				}
-			}
 
-			let issuesHtml = "";
-			for (const [file, issues] of byFile) {
-				issuesHtml += `<div class="fg"><div class="fn">${fl(file)} <span class="fc">${issues.length}</span></div>`;
-				for (const iss of issues) {
-					const prompt = `Fix this issue in ${file}${iss.line ? ":" + iss.line : ""}\n${iss.severity}: ${iss.message}${iss.rule ? " (" + iss.rule + ")" : ""}\nCheck: ${c.name}`;
-					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" data-prompt="${e(prompt)}" title="Copy fix prompt">📋</button></div>`;
+				let issuesHtml = "";
+				for (const [file, issues] of byFile) {
+					issuesHtml += `<div class="fg"><div class="fn">${fl(file)} <span class="fc">${issues.length}</span></div>`;
+					for (const iss of issues) {
+						const prompt = `Fix this issue in ${file}${iss.line ? `:${iss.line}` : ""}\n${iss.severity}: ${iss.message}${iss.rule ? ` (${iss.rule})` : ""}\nCheck: ${c.name}`;
+						issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" data-prompt="${e(prompt)}" title="Copy fix prompt">📋</button></div>`;
+					}
+					issuesHtml += `</div>`;
 				}
-				issuesHtml += `</div>`;
-			}
-			if (noFile.length > 0) {
-				issuesHtml += `<div class="fg"><div class="fn">General</div>`;
-				for (const iss of noFile) {
-					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span><span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}</div>`;
+				if (noFile.length > 0) {
+					issuesHtml += `<div class="fg"><div class="fn">General</div>`;
+					for (const iss of noFile) {
+						issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span><span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}</div>`;
+					}
+					issuesHtml += `</div>`;
 				}
-				issuesHtml += `</div>`;
-			}
 
-			return `<div class="sp${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}">
-<div class="ch-head"><span class="ch-g" style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span><div><b>${e(meta.label)}</b><span class="ch-s">${sk ? "skipped" : c.score + "/100"} · weight ${meta.weight}% · ${c.duration}ms · ${c.issues.length} issues</span></div><span class="pri" style="color:${pc(meta.priority)}">${meta.priority}</span></div>
+				return `<div class="sp${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}">
+<div class="ch-head"><span class="ch-g" style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span><div><b>${e(meta.label)}</b><span class="ch-s">${sk ? "skipped" : `${c.score}/100`} · weight ${meta.weight}% · ${c.duration}ms · ${c.issues.length} issues</span></div><span class="pri" style="color:${pc(meta.priority)}">${meta.priority}</span></div>
 ${meta.description ? `<div class="info-panel"><div class="ip-row"><span class="ip-label">What</span><span>${e(meta.description)}</span></div><div class="ip-row"><span class="ip-label">Risk</span><span>${e(meta.risk)}</span></div><div class="ip-row"><span class="ip-label">Fix</span><span>${e(meta.recommendation)}</span></div></div>` : ""}
 ${sk ? `<p class="skip-r">${e((c.details as any).reason || "skipped")}</p>` : ""}
 ${c.name === "architecture" && !sk ? `<div class="arch-svg">${generateArchSVG(c.details)}</div>` : ""}
 ${detailsFiltered ? `<div class="kvs">${detailsFiltered}</div>` : ""}
 ${issuesHtml ? `<div class="iss-list">${issuesHtml}</div>` : '<p style="color:var(--muted);font-size:0.8rem;margin-top:1rem">No issues found.</p>'}
 </div>`;
-		}).join("");
+			})
+			.join("");
 
 		const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
 		catPages += `<div id="p-${cs.id}" class="page">
@@ -186,10 +203,13 @@ ${subPages}
 
 	// All Issues page
 	const allIssues = allChecks.flatMap((c) => c.issues.map((i) => ({ check: c.name, ...i })));
-	const issueRows = allIssues.slice(0, 200).map((i) => {
-		const loc = i.file ? fl(i.file.split(":")[0]!, i.line) : "";
-		return `<tr class="${i.severity}"><td class="is2">${i.severity[0].toUpperCase()}</td><td class="ic2">${e(i.check)}</td><td class="il2">${loc}</td><td>${e(i.message)}</td><td class="iru2">${e(i.rule || "")}</td></tr>`;
-	}).join("");
+	const issueRows = allIssues
+		.slice(0, 200)
+		.map((i) => {
+			const loc = i.file ? fl(i.file.split(":")[0]!, i.line) : "";
+			return `<tr class="${i.severity}"><td class="is2">${i.severity[0].toUpperCase()}</td><td class="ic2">${e(i.check)}</td><td class="il2">${loc}</td><td>${e(i.message)}</td><td class="iru2">${e(i.rule || "")}</td></tr>`;
+		})
+		.join("");
 
 	const issuesPage = `<div id="p-issues" class="page">
 <h2>All Issues <span style="color:var(--muted);font-weight:400">${totalIssues}</span></h2>
@@ -199,10 +219,12 @@ ${allIssues.length > 200 ? `<p style="color:var(--muted);text-align:center;margi
 </div>`;
 
 	// File heatmap page
-	const fileRows = topFiles.map((f) => {
-		const pct = Math.min(100, f.total * 5);
-		return `<div class="fr"><span class="ff">${fl(f.file)}</span><div class="fb"><div class="fbf" style="width:${pct}%;background:${f.errors > 0 ? "var(--fail)" : "var(--warn)"}"></div></div><span class="fv">${f.errors}E ${f.warnings}W</span><span class="fcs">${f.checks.join(", ")}</span></div>`;
-	}).join("");
+	const fileRows = topFiles
+		.map((f) => {
+			const pct = Math.min(100, f.total * 5);
+			return `<div class="fr"><span class="ff">${fl(f.file)}</span><div class="fb"><div class="fbf" style="width:${pct}%;background:${f.errors > 0 ? "var(--fail)" : "var(--warn)"}"></div></div><span class="fv">${f.errors}E ${f.warnings}W</span><span class="fcs">${f.checks.join(", ")}</span></div>`;
+		})
+		.join("");
 
 	const filesPage = `<div id="p-files" class="page">
 <h2>File Heatmap</h2>
@@ -211,22 +233,22 @@ ${fileRows || '<p style="color:var(--muted)">No file-level issues found.</p>'}
 </div>`;
 
 	// Codebase heatmap — each file = row of pixels, color = issue density
-	const heatmapFiles = [...fileIssues.entries()]
-		.sort((a, b) => b[1].errors + b[1].warnings - a[1].errors - a[1].warnings)
-		.slice(0, 30);
+	const heatmapFiles = [...fileIssues.entries()].sort((a, b) => b[1].errors + b[1].warnings - a[1].errors - a[1].warnings).slice(0, 30);
 	let heatmapHtml = "";
 	if (heatmapFiles.length > 0) {
 		const maxIssues = Math.max(...heatmapFiles.map(([, d]) => d.errors + d.warnings));
-		heatmapHtml = heatmapFiles.map(([file, d]) => {
-			const total = d.errors + d.warnings;
-			const intensity = maxIssues > 0 ? total / maxIssues : 0;
-			const r = Math.round(239 * intensity); // red channel
-			const g = Math.round(68 * (1 - intensity) + 197 * (d.errors === 0 ? 0.3 : 0)); // green
-			const color = `rgb(${r},${g},30)`;
-			const barW = Math.max(4, Math.round(intensity * 200));
-			const checks = [...d.checks].join(", ");
-			return `<div class="hm-row"><span class="hm-name">${fl(file)}</span><div class="hm-bar" style="width:${barW}px;background:${color}" title="${total} issues (${checks})"></div><span class="hm-count">${d.errors}E ${d.warnings}W</span></div>`;
-		}).join("");
+		heatmapHtml = heatmapFiles
+			.map(([file, d]) => {
+				const total = d.errors + d.warnings;
+				const intensity = maxIssues > 0 ? total / maxIssues : 0;
+				const r = Math.round(239 * intensity); // red channel
+				const g = Math.round(68 * (1 - intensity) + 197 * (d.errors === 0 ? 0.3 : 0)); // green
+				const color = `rgb(${r},${g},30)`;
+				const barW = Math.max(4, Math.round(intensity * 200));
+				const checks = [...d.checks].join(", ");
+				return `<div class="hm-row"><span class="hm-name">${fl(file)}</span><div class="hm-bar" style="width:${barW}px;background:${color}" title="${total} issues (${checks})"></div><span class="hm-count">${d.errors}E ${d.warnings}W</span></div>`;
+			})
+			.join("");
 	}
 
 	const heatmapPage = `<div id="p-heatmap" class="page">
@@ -380,14 +402,18 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 
 <aside class="side">
   <div class="side-section">Score<div class="side-score" style="color:${gc(report.grade)}">${report.grade} ${report.score}</div></div>
-  ${catScores.map((cs) => {
-		const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
-		return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} <span style="color:${clr}">${cs.avg}</span></a>${cs.checks.map((c) => {
-			const sk = (c.details as any).skipped;
-			const meta = getCheckMeta(c.name);
-			return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span> ${e(meta.label)}</a>`;
-		}).join("")}</div>`;
-	}).join("")}
+  ${catScores
+		.map((cs) => {
+			const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
+			return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} <span style="color:${clr}">${cs.avg}</span></a>${cs.checks
+				.map((c) => {
+					const sk = (c.details as any).skipped;
+					const meta = getCheckMeta(c.name);
+					return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "—" : c.grade}</span> ${e(meta.label)}</a>`;
+				})
+				.join("")}</div>`;
+		})
+		.join("")}
 </aside>
 <div class="content">
   ${overviewPage}
@@ -435,12 +461,16 @@ function buildRing(score: number, color: string): string {
 function buildRadar(items: { label: string; score: number }[]): string {
 	const n = items.length;
 	if (n < 3) return "";
-	const cx = 120, cy = 120, r = 90;
+	const cx = 120,
+		cy = 120,
+		r = 90;
 	const step = (2 * Math.PI) / n;
 	let grid = "";
 	for (const pct of [25, 50, 75, 100]) {
 		const rr = (pct / 100) * r;
-		const pts = items.map((_, i) => `${cx + rr * Math.cos(i * step - Math.PI / 2)},${cy + rr * Math.sin(i * step - Math.PI / 2)}`).join(" ");
+		const pts = items
+			.map((_, i) => `${cx + rr * Math.cos(i * step - Math.PI / 2)},${cy + rr * Math.sin(i * step - Math.PI / 2)}`)
+			.join(" ");
 		grid += `<polygon points="${pts}" fill="none" stroke="#1e1e24" stroke-width="0.7"/>`;
 	}
 	let axes = "";
@@ -451,11 +481,13 @@ function buildRadar(items: { label: string; score: number }[]): string {
 		const ly = cy + (r + 16) * Math.sin(a);
 		axes += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" fill="#6b7280" font-size="9" font-weight="600">${items[i].label}</text>`;
 	}
-	const dataPts = items.map((c, i) => {
-		const a = i * step - Math.PI / 2;
-		const rr = (c.score / 100) * r;
-		return `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
-	}).join(" ");
+	const dataPts = items
+		.map((c, i) => {
+			const a = i * step - Math.PI / 2;
+			const rr = (c.score / 100) * r;
+			return `${cx + rr * Math.cos(a)},${cy + rr * Math.sin(a)}`;
+		})
+		.join(" ");
 	let dots = "";
 	for (let i = 0; i < n; i++) {
 		const a = i * step - Math.PI / 2;

@@ -10,13 +10,8 @@ export function runDependencies(cwd: string, stack: StackInfo): CheckResult {
 	const pm = stack.packageManager;
 
 	// Vulnerability audit
-	const auditCmd =
-		pm === "pnpm"
-			? "pnpm audit --json"
-			: pm === "yarn"
-				? "yarn audit --json"
-				: "npm audit --json";
-	const auditResult = run(auditCmd + " 2>/dev/null || true", cwd);
+	const auditCmd = pm === "pnpm" ? "pnpm audit --json" : pm === "yarn" ? "yarn audit --json" : "npm audit --json";
+	const auditResult = run(`${auditCmd} 2>/dev/null || true`, cwd);
 	let vulnCritical = 0,
 		vulnHigh = 0,
 		vulnModerate = 0,
@@ -62,9 +57,8 @@ export function runDependencies(cwd: string, stack: StackInfo): CheckResult {
 		});
 
 	// Outdated check
-	const outdatedCmd =
-		pm === "pnpm" ? "pnpm outdated --json" : "npm outdated --json";
-	const outdatedResult = run(outdatedCmd + " 2>/dev/null || true", cwd);
+	const outdatedCmd = pm === "pnpm" ? "pnpm outdated --json" : "npm outdated --json";
+	const outdatedResult = run(`${outdatedCmd} 2>/dev/null || true`, cwd);
 	let outdatedCount = 0;
 	let majorOutdated = 0;
 	try {
@@ -89,17 +83,7 @@ export function runDependencies(cwd: string, stack: StackInfo): CheckResult {
 		});
 
 	// Score: -25 per critical, -15 per high, -5 per moderate, -1 per major outdated
-	const score = Math.max(
-		0,
-		Math.min(
-			100,
-			100 -
-				vulnCritical * 25 -
-				vulnHigh * 15 -
-				vulnModerate * 5 -
-				majorOutdated * 1,
-		),
-	);
+	const score = Math.max(0, Math.min(100, 100 - vulnCritical * 25 - vulnHigh * 15 - vulnModerate * 5 - majorOutdated * 1));
 
 	return {
 		name: "dependencies",

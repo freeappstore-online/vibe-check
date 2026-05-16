@@ -21,21 +21,66 @@ import { gradeFromScore } from "../types.js";
 // ── Pattern dictionaries ──
 
 const SYNONYM_PAIRS: [string, string][] = [
-	["utils", "helpers"], ["util", "helper"],
-	["types", "interfaces"], ["types", "models"], ["interfaces", "models"],
-	["constants", "config"], ["constants", "settings"], ["config", "settings"],
-	["service", "controller"], ["service", "handler"], ["controller", "handler"],
-	["store", "state"], ["context", "provider"],
+	["utils", "helpers"],
+	["util", "helper"],
+	["types", "interfaces"],
+	["types", "models"],
+	["interfaces", "models"],
+	["constants", "config"],
+	["constants", "settings"],
+	["config", "settings"],
+	["service", "controller"],
+	["service", "handler"],
+	["controller", "handler"],
+	["store", "state"],
+	["context", "provider"],
 ];
 
 const GENERIC_NAMES = new Set([
-	"process", "handle", "run", "execute", "do", "perform", "make",
-	"get", "set", "update", "create", "delete", "remove", "add",
-	"data", "result", "item", "value", "info", "temp", "obj",
-	"stuff", "thing", "ret", "val", "res", "output", "input",
-	"response", "request", "payload", "body", "args", "params",
-	"list", "arr", "map", "dict", "collection",
-	"callback", "cb", "fn", "func", "handler",
+	"process",
+	"handle",
+	"run",
+	"execute",
+	"do",
+	"perform",
+	"make",
+	"get",
+	"set",
+	"update",
+	"create",
+	"delete",
+	"remove",
+	"add",
+	"data",
+	"result",
+	"item",
+	"value",
+	"info",
+	"temp",
+	"obj",
+	"stuff",
+	"thing",
+	"ret",
+	"val",
+	"res",
+	"output",
+	"input",
+	"response",
+	"request",
+	"payload",
+	"body",
+	"args",
+	"params",
+	"list",
+	"arr",
+	"map",
+	"dict",
+	"collection",
+	"callback",
+	"cb",
+	"fn",
+	"func",
+	"handler",
 ]);
 
 const AMBIGUOUS_ABBREVS: Record<string, string> = {
@@ -65,11 +110,20 @@ export function runConfusion(cwd: string): CheckResult {
 	for (const dir of dirs) {
 		try {
 			collectFiles(join(cwd, dir), cwd, files);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 
 	if (files.length === 0) {
-		return { name: "confusion", score: 100, grade: "A", details: { skipped: true, reason: "no source files" }, issues: [], duration: Date.now() - start };
+		return {
+			name: "confusion",
+			score: 100,
+			grade: "A",
+			details: { skipped: true, reason: "no source files" },
+			issues: [],
+			duration: Date.now() - start,
+		};
 	}
 
 	let fileConfusability = 0;
@@ -86,14 +140,24 @@ export function runConfusion(cwd: string): CheckResult {
 			// Near-identical (Levenshtein ≤ 2)
 			if (a !== b && levenshtein(a, b) <= 2) {
 				fileConfusability++;
-				issues.push({ severity: "warning", message: `Similar filenames: ${a} ↔ ${b} (edit distance ${levenshtein(a, b)})`, file: files[i].path, rule: "similar-filename" });
+				issues.push({
+					severity: "warning",
+					message: `Similar filenames: ${a} ↔ ${b} (edit distance ${levenshtein(a, b)})`,
+					file: files[i].path,
+					rule: "similar-filename",
+				});
 			}
 
 			// Synonym pairs
 			for (const [s1, s2] of SYNONYM_PAIRS) {
 				if ((a.includes(s1) && b.includes(s2)) || (a.includes(s2) && b.includes(s1))) {
 					fileConfusability++;
-					issues.push({ severity: "warning", message: `Synonym filenames: ${a} ↔ ${b} (${s1}/${s2} are interchangeable — pick one convention)`, file: files[i].path, rule: "synonym-filename" });
+					issues.push({
+						severity: "warning",
+						message: `Synonym filenames: ${a} ↔ ${b} (${s1}/${s2} are interchangeable — pick one convention)`,
+						file: files[i].path,
+						rule: "synonym-filename",
+					});
 					break;
 				}
 			}
@@ -111,14 +175,26 @@ export function runConfusion(cwd: string): CheckResult {
 			const funcMatch = line.match(/^export\s+(?:async\s+)?function\s+(\w+)/);
 			if (funcMatch && GENERIC_NAMES.has(funcMatch[1].toLowerCase())) {
 				genericNames++;
-				issues.push({ severity: "warning", message: `Generic export name: ${funcMatch[1]}() — not descriptive enough for LLM comprehension`, file: f.path, line: i + 1, rule: "generic-name" });
+				issues.push({
+					severity: "warning",
+					message: `Generic export name: ${funcMatch[1]}() — not descriptive enough for LLM comprehension`,
+					file: f.path,
+					line: i + 1,
+					rule: "generic-name",
+				});
 			}
 
 			// Match standalone variable assignments with generic names
 			const varMatch = line.match(/^(?:export\s+)?(?:const|let)\s+(\w+)\s*=/);
 			if (varMatch && GENERIC_NAMES.has(varMatch[1].toLowerCase()) && varMatch[1].length <= 6) {
 				genericNames++;
-				issues.push({ severity: "warning", message: `Generic variable: ${varMatch[1]} — use a descriptive name`, file: f.path, line: i + 1, rule: "generic-name" });
+				issues.push({
+					severity: "warning",
+					message: `Generic variable: ${varMatch[1]} — use a descriptive name`,
+					file: f.path,
+					line: i + 1,
+					rule: "generic-name",
+				});
 			}
 		}
 	}
@@ -135,7 +211,12 @@ export function runConfusion(cwd: string): CheckResult {
 	for (const [name, paths] of exportMap) {
 		if (paths.length > 1) {
 			exportCollisions++;
-			issues.push({ severity: "error", message: `Export collision: "${name}" exported from ${paths.length} files — LLMs may reference the wrong one`, file: paths.join(", "), rule: "export-collision" });
+			issues.push({
+				severity: "error",
+				message: `Export collision: "${name}" exported from ${paths.length} files — LLMs may reference the wrong one`,
+				file: paths.join(", "),
+				rule: "export-collision",
+			});
 		}
 	}
 
@@ -145,7 +226,12 @@ export function runConfusion(cwd: string): CheckResult {
 		for (const part of nameParts) {
 			if (AMBIGUOUS_ABBREVS[part]) {
 				ambiguousAbbrevs++;
-				issues.push({ severity: "warning", message: `Ambiguous abbreviation "${part}" in filename — could mean: ${AMBIGUOUS_ABBREVS[part]}`, file: f.path, rule: "ambiguous-abbreviation" });
+				issues.push({
+					severity: "warning",
+					message: `Ambiguous abbreviation "${part}" in filename — could mean: ${AMBIGUOUS_ABBREVS[part]}`,
+					file: f.path,
+					rule: "ambiguous-abbreviation",
+				});
 			}
 		}
 	}
@@ -167,7 +253,8 @@ export function runConfusion(cwd: string): CheckResult {
 // ── Helpers ──
 
 function levenshtein(a: string, b: string): number {
-	const m = a.length, n = b.length;
+	const m = a.length,
+		n = b.length;
 	const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
 	for (let i = 0; i <= m; i++) dp[i][0] = i;
 	for (let j = 0; j <= n; j++) dp[0][j] = j;
@@ -207,7 +294,7 @@ function collectFiles(dir: string, cwd: string, out: { path: string; base: strin
 			const ext = extname(entry);
 			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
 				const content = readFileSync(full, "utf-8");
-				const relPath = full.replace(cwd + "/", "");
+				const relPath = full.replace(`${cwd}/`, "");
 				const base = basename(entry, ext);
 				out.push({ path: relPath, base, content, exports: extractExports(content) });
 			}

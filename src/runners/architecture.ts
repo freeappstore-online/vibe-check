@@ -11,9 +11,9 @@
  */
 
 import { basename, dirname, extname } from "node:path";
+import { getProductionFiles, type SourceFile } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
-import { getProductionFiles, type SourceFile } from "../fs-utils.js";
 
 interface ModuleNode {
 	path: string;
@@ -36,7 +36,14 @@ export function runArchitecture(cwd: string): CheckResult {
 	const files = getProductionFiles(cwd);
 
 	if (files.length < 2) {
-		return { name: "architecture", score: 100, grade: "A", details: { skipped: true, reason: "fewer than 2 source files" }, issues: [], duration: Date.now() - start };
+		return {
+			name: "architecture",
+			score: 100,
+			grade: "A",
+			details: { skipped: true, reason: "fewer than 2 source files" },
+			issues: [],
+			duration: Date.now() - start,
+		};
 	}
 
 	const graph = buildGraph(files);
@@ -56,7 +63,12 @@ export function runArchitecture(cwd: string): CheckResult {
 	for (const [path, node] of graph.nodes) {
 		if (node.importedBy.length >= threshold) {
 			godModules.push(path);
-			issues.push({ severity: "warning", message: `God module: imported by ${node.importedBy.length}/${files.length} files — consider splitting`, file: path, rule: "god-module" });
+			issues.push({
+				severity: "warning",
+				message: `God module: imported by ${node.importedBy.length}/${files.length} files — consider splitting`,
+				file: path,
+				rule: "god-module",
+			});
 		}
 	}
 
@@ -76,7 +88,12 @@ export function runArchitecture(cwd: string): CheckResult {
 	for (const [path, node] of graph.nodes) {
 		if (node.imports.length > 10) {
 			highFanOut++;
-			issues.push({ severity: "warning", message: `High fan-out: imports ${node.imports.length} modules — hard to test in isolation`, file: path, rule: "high-fan-out" });
+			issues.push({
+				severity: "warning",
+				message: `High fan-out: imports ${node.imports.length} modules — hard to test in isolation`,
+				file: path,
+				rule: "high-fan-out",
+			});
 		}
 	}
 
@@ -85,7 +102,12 @@ export function runArchitecture(cwd: string): CheckResult {
 	for (const [path, node] of graph.nodes) {
 		if (node.imports.length > 5 && node.importedBy.length > 5) {
 			connectors++;
-			issues.push({ severity: "warning", message: `Connector: ${node.imports.length} imports, ${node.importedBy.length} importers — high coupling`, file: path, rule: "connector-module" });
+			issues.push({
+				severity: "warning",
+				message: `Connector: ${node.imports.length} imports, ${node.importedBy.length} importers — high coupling`,
+				file: path,
+				rule: "connector-module",
+			});
 		}
 	}
 
@@ -187,7 +209,7 @@ function resolveImport(fromPath: string, importPath: string, knownFiles: Set<str
 	}
 	// Try index
 	for (const ext of [".ts", ".tsx"]) {
-		if (knownFiles.has(resolved + "/index" + ext)) return resolved + "/index" + ext;
+		if (knownFiles.has(`${resolved}/index${ext}`)) return `${resolved}/index${ext}`;
 	}
 	return null;
 }
@@ -261,7 +283,8 @@ export function generateArchSVG(details: Record<string, unknown>): string {
 		dirs.set(dir, arr);
 	}
 
-	const W = 800, padding = 40;
+	const W = 800,
+		padding = 40;
 	const dirEntries = [...dirs.entries()];
 	const dirWidth = (W - padding * 2) / Math.max(dirEntries.length, 1);
 

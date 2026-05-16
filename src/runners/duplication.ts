@@ -25,11 +25,20 @@ export function runDuplication(cwd: string): CheckResult {
 	for (const dir of dirs) {
 		try {
 			collectFiles(join(cwd, dir), files);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 
 	if (files.length < 2) {
-		return { name: "duplication", score: 100, grade: "A", details: { filesScanned: files.length, duplicates: 0 }, issues: [], duration: Date.now() - start };
+		return {
+			name: "duplication",
+			score: 100,
+			grade: "A",
+			details: { filesScanned: files.length, duplicates: 0 },
+			issues: [],
+			duration: Date.now() - start,
+		};
 	}
 
 	// Simple line-based duplicate detection
@@ -39,7 +48,7 @@ export function runDuplication(cwd: string): CheckResult {
 
 	for (const file of files) {
 		const content = readFileSync(file, "utf-8");
-		const relPath = file.replace(cwd + "/", "");
+		const relPath = file.replace(`${cwd}/`, "");
 		const lines = content.split("\n");
 		totalSourceLines += lines.length;
 
@@ -96,7 +105,7 @@ export function runDuplication(cwd: string): CheckResult {
 		name: "duplication",
 		score,
 		grade: gradeFromScore(score),
-		details: { filesScanned: files.length, totalSourceLines, duplicateBlocks: duplicates.length, duplicationPct: dupPct + "%" },
+		details: { filesScanned: files.length, totalSourceLines, duplicateBlocks: duplicates.length, duplicationPct: `${dupPct}%` },
 		issues,
 		duration: Date.now() - start,
 	};

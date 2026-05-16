@@ -42,7 +42,7 @@ export function runComplexity(cwd: string): CheckResult {
 		totalLines += lines.length;
 
 		// Simple heuristic: find function boundaries and measure complexity
-		const funcs = extractFunctions(content, file.replace(cwd + "/", ""));
+		const funcs = extractFunctions(content, file.replace(`${cwd}/`, ""));
 		for (const f of funcs) {
 			functions.push(f);
 			if (f.lines > MAX_FUNCTION_LINES) {
@@ -67,10 +67,7 @@ export function runComplexity(cwd: string): CheckResult {
 	}
 
 	// Score: start at 100, -3 per long function, -5 per complex function
-	const score = Math.max(
-		0,
-		Math.min(100, 100 - longFunctions * 3 - complexFunctions * 5),
-	);
+	const score = Math.max(0, Math.min(100, 100 - longFunctions * 3 - complexFunctions * 5));
 
 	return {
 		name: "complexity",
@@ -90,19 +87,14 @@ export function runComplexity(cwd: string): CheckResult {
 
 function collectFiles(dir: string, out: string[]): void {
 	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist" || entry === ".git")
-			continue;
+		if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
 		const full = join(dir, entry);
 		const stat = statSync(full);
 		if (stat.isDirectory()) {
 			collectFiles(full, out);
 		} else {
 			const ext = extname(entry);
-			if (
-				(ext === ".ts" || ext === ".tsx" || ext === ".js" || ext === ".jsx") &&
-				!entry.includes(".test.") &&
-				!entry.includes(".spec.")
-			) {
+			if ((ext === ".ts" || ext === ".tsx" || ext === ".js" || ext === ".jsx") && !entry.includes(".test.") && !entry.includes(".spec.")) {
 				out.push(full);
 			}
 		}
@@ -126,12 +118,8 @@ function extractFunctions(content: string, filePath: string): FunctionMetric[] {
 		if (funcStart === -1) {
 			const match =
 				trimmed.match(/^(?:export\s+)?(?:async\s+)?function\s+(\w+)/) ||
-				trimmed.match(
-					/^(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s*)?\(/,
-				) ||
-				trimmed.match(
-					/^(?:private|public|protected)?\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*\w[^{]*)?\{/,
-				) ||
+				trimmed.match(/^(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s*)?\(/) ||
+				trimmed.match(/^(?:private|public|protected)?\s*(?:async\s+)?(\w+)\s*\([^)]*\)\s*(?::\s*\w[^{]*)?\{/) ||
 				trimmed.match(/^(?:async\s+)?(\w+)\s*\([^)]*\)\s*\{/);
 			if (match) {
 				funcStart = i;
@@ -171,11 +159,7 @@ function measureComplexity(code: string): number {
 	for (const line of lines) {
 		const trimmed = line.trim();
 		// +1 for each branch/loop keyword
-		if (
-			/\b(if|else if|else|switch|for|while|do|catch|&&|\|\||[?]:)\b/.test(
-				trimmed,
-			)
-		) {
+		if (/\b(if|else if|else|switch|for|while|do|catch|&&|\|\||[?]:)\b/.test(trimmed)) {
 			complexity++;
 		}
 		// +1 for ternary

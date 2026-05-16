@@ -1,7 +1,7 @@
 /** Project structure check — does the repo have standard files and conventions? */
 
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { join, extname } from "node:path";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { extname, join } from "node:path";
 import type { CheckResult, Issue, StackInfo } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -68,7 +68,11 @@ export function runStructure(cwd: string, stack: StackInfo): CheckResult {
 	if (testCount === 0 && srcCount > 0) {
 		issues.push({ severity: "error", message: `No test files found (${srcCount} source files with zero tests)`, rule: "no-tests" });
 	} else if (testRatio < 0.3 && srcCount > 3) {
-		issues.push({ severity: "warning", message: `Low test-to-source ratio: ${testCount} tests for ${srcCount} source files (${Math.round(testRatio * 100)}%)`, rule: "low-test-ratio" });
+		issues.push({
+			severity: "warning",
+			message: `Low test-to-source ratio: ${testCount} tests for ${srcCount} source files (${Math.round(testRatio * 100)}%)`,
+			rule: "low-test-ratio",
+		});
 	}
 
 	// Check package.json has essential scripts
@@ -76,8 +80,11 @@ export function runStructure(cwd: string, stack: StackInfo): CheckResult {
 		const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf-8"));
 		const scripts = pkg.scripts || {};
 		if (!scripts.test) issues.push({ severity: "warning", message: "No 'test' script in package.json", rule: "no-test-script" });
-		if (!scripts.build && !scripts.dev) issues.push({ severity: "info", message: "No 'build' or 'dev' script in package.json", rule: "no-build-script" });
-	} catch { /* no package.json or parse error */ }
+		if (!scripts.build && !scripts.dev)
+			issues.push({ severity: "info", message: "No 'build' or 'dev' script in package.json", rule: "no-build-script" });
+	} catch {
+		/* no package.json or parse error */
+	}
 
 	const errors = issues.filter((i) => i.severity === "error").length;
 	const warnings = issues.filter((i) => i.severity === "warning").length;
@@ -87,7 +94,7 @@ export function runStructure(cwd: string, stack: StackInfo): CheckResult {
 		name: "structure",
 		score,
 		grade: gradeFromScore(score),
-		details: { found, missing, srcFiles: srcCount, testFiles: testCount, testRatio: Math.round(testRatio * 100) + "%" },
+		details: { found, missing, srcFiles: srcCount, testFiles: testCount, testRatio: `${Math.round(testRatio * 100)}%` },
 		issues,
 		duration: Date.now() - start,
 	};
@@ -98,7 +105,9 @@ function collectAll(cwd: string, src: string[], test: string[]): void {
 	for (const dir of dirs) {
 		try {
 			walk(join(cwd, dir), src, test);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 }
 

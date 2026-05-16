@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /** vibe-check — code health scanner for the AI coding era. */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { detectRepoUrl, detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
-import { runComplexity } from "./runners/complexity.js";
 import { runArchitecture } from "./runners/architecture.js";
+import { runComplexity } from "./runners/complexity.js";
 import { runConfusion } from "./runners/confusion.js";
 import { runContext } from "./runners/context.js";
 import { runDependencies } from "./runners/dependencies.js";
@@ -18,8 +18,8 @@ import { runSecurity } from "./runners/security.js";
 import { runStandards } from "./runners/standards.js";
 import { runStructure } from "./runners/structure.js";
 import { runTesting } from "./runners/testing.js";
-import { runTypeCheck } from "./runners/types-check.js";
 import { runTypeSafety } from "./runners/type-safety.js";
+import { runTypeCheck } from "./runners/types-check.js";
 import { computeScore } from "./score.js";
 import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
@@ -47,15 +47,17 @@ async function main() {
 
 	if (!jsonOnly) {
 		console.log("");
-		console.log("  \x1b[1m\x1b[38;5;141mvcqa\x1b[0m v" + VERSION);
-		console.log("  \x1b[2m" + cwd + "\x1b[0m");
+		console.log(`  \x1b[1m\x1b[38;5;141mvcqa\x1b[0m v${VERSION}`);
+		console.log(`  \x1b[2m${cwd}\x1b[0m`);
 		console.log("");
 	}
 
 	const stack = detectStack(cwd);
 	if (!jsonOnly) {
-		const parts = [stack.language, stack.framework, stack.bundler, stack.testRunner, stack.linter, stack.packageManager].filter((v) => v !== "none" && v !== "unknown");
-		console.log("  stack: " + parts.join(" + "));
+		const parts = [stack.language, stack.framework, stack.bundler, stack.testRunner, stack.linter, stack.packageManager].filter(
+			(v) => v !== "none" && v !== "unknown",
+		);
+		console.log(`  stack: ${parts.join(" + ")}`);
 		console.log("");
 	}
 
@@ -87,14 +89,14 @@ async function main() {
 	];
 
 	for (const runner of runners) {
-		if (!jsonOnly) process.stdout.write("  " + runner.name.padEnd(14));
+		if (!jsonOnly) process.stdout.write(`  ${runner.name.padEnd(14)}`);
 		const result = runner.fn();
 		checks.push(result);
 		if (!jsonOnly) {
 			const skipped = (result.details as Record<string, unknown>).skipped;
 			const c = skipped ? "\x1b[2m" : color(result.grade);
 			const label = skipped ? "skip" : result.grade;
-			const scoreStr = skipped ? "—" : result.score + "/100";
+			const scoreStr = skipped ? "—" : `${result.score}/100`;
 			const issueStr = result.issues.length > 0 ? `  \x1b[2m${result.issues.length} issues\x1b[0m` : "";
 			console.log(`${c}${label.padEnd(5)}${scoreStr}\x1b[0m  \x1b[2m${result.duration}ms\x1b[0m${issueStr}`);
 		}
@@ -126,10 +128,16 @@ async function main() {
 	writeFileSync(historyFile, JSON.stringify(report, null, 2));
 
 	// Keep only last 30 history entries
-	const historyFiles = readdirSync(historyDir).filter((f) => f.endsWith(".json")).sort();
+	const historyFiles = readdirSync(historyDir)
+		.filter((f) => f.endsWith(".json"))
+		.sort();
 	if (historyFiles.length > 30) {
 		for (const old of historyFiles.slice(0, historyFiles.length - 30)) {
-			try { unlinkSync(join(historyDir, old)); } catch { /* ignore */ }
+			try {
+				unlinkSync(join(historyDir, old));
+			} catch {
+				/* ignore */
+			}
 		}
 	}
 
@@ -141,11 +149,13 @@ async function main() {
 	} else {
 		const gc = color(grade);
 		console.log("");
-		console.log(`  ${gc}\x1b[1m${grade}\x1b[0m ${gc}${score}/100\x1b[0m  \x1b[2m${checks.length} checks · ${totalIssues} issues · ${duration}ms\x1b[0m`);
+		console.log(
+			`  ${gc}\x1b[1m${grade}\x1b[0m ${gc}${score}/100\x1b[0m  \x1b[2m${checks.length} checks · ${totalIssues} issues · ${duration}ms\x1b[0m`,
+		);
 		if (trend) console.log(formatTrend(trend));
 		console.log("");
-		console.log("  \x1b[2mReport: " + join(outputDir, "report.html") + "\x1b[0m");
-		console.log("  \x1b[2mJSON:   " + join(outputDir, "report.json") + "\x1b[0m");
+		console.log(`  \x1b[2mReport: ${join(outputDir, "report.html")}\x1b[0m`);
+		console.log(`  \x1b[2mJSON:   ${join(outputDir, "report.json")}\x1b[0m`);
 		console.log("");
 	}
 
@@ -158,7 +168,9 @@ async function main() {
 			const { execFileSync } = await import("node:child_process");
 			const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
 			execFileSync(openCmd, [join(outputDir, "report.html")], { stdio: "ignore" });
-		} catch { /* failed to open browser */ }
+		} catch {
+			/* failed to open browser */
+		}
 	}
 
 	// Watch mode — re-run on file changes

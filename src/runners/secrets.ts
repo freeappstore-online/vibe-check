@@ -32,8 +32,7 @@ const SECRET_PATTERNS: { name: string; pattern: RegExp }[] = [
 	},
 	{
 		name: "Generic Secret Assignment",
-		pattern:
-			/(?:password|secret|api_key|apikey|token|auth)\s*[:=]\s*['"][A-Za-z0-9+/=]{20,}['"]/,
+		pattern: /(?:password|secret|api_key|apikey|token|auth)\s*[:=]\s*['"][A-Za-z0-9+/=]{20,}['"]/,
 	},
 ];
 
@@ -46,7 +45,7 @@ export function runSecrets(cwd: string): CheckResult {
 
 	for (const file of files) {
 		const content = readFileSync(file, "utf-8");
-		const relPath = file.replace(cwd + "/", "");
+		const relPath = file.replace(`${cwd}/`, "");
 		const lines = content.split("\n");
 
 		for (let i = 0; i < lines.length; i++) {
@@ -70,8 +69,7 @@ export function runSecrets(cwd: string): CheckResult {
 		}
 	}
 
-	const score =
-		issues.length === 0 ? 100 : Math.max(0, 100 - issues.length * 25);
+	const score = issues.length === 0 ? 100 : Math.max(0, 100 - issues.length * 25);
 
 	return {
 		name: "secrets",
@@ -85,36 +83,14 @@ export function runSecrets(cwd: string): CheckResult {
 
 function collectFiles(dir: string, out: string[]): void {
 	for (const entry of readdirSync(dir)) {
-		if (
-			[
-				"node_modules",
-				"dist",
-				".git",
-				".vibe-check",
-				"coverage",
-				"test-results",
-			].includes(entry)
-		)
-			continue;
+		if (["node_modules", "dist", ".git", ".vibe-check", "coverage", "test-results"].includes(entry)) continue;
 		const full = join(dir, entry);
 		const stat = statSync(full);
 		if (stat.isDirectory()) {
 			collectFiles(full, out);
 		} else {
 			const ext = extname(entry);
-			if (
-				[
-					".ts",
-					".tsx",
-					".js",
-					".jsx",
-					".json",
-					".env",
-					".yaml",
-					".yml",
-					".toml",
-				].includes(ext)
-			) {
+			if ([".ts", ".tsx", ".js", ".jsx", ".json", ".env", ".yaml", ".yml", ".toml"].includes(ext)) {
 				out.push(full);
 			}
 		}

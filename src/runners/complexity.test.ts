@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
-import { runComplexity } from "./complexity.js";
-import { mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { runComplexity } from "./complexity.js";
 
 const TMP = join(import.meta.dirname!, "__test_complexity__");
 

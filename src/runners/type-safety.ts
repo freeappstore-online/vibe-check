@@ -32,21 +32,33 @@ export function runTypeSafety(cwd: string): CheckResult {
 	for (const dir of dirs) {
 		try {
 			collectFiles(join(cwd, dir), files);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 
 	if (files.length === 0) {
-		return { name: "type-safety", score: 100, grade: "A", details: { skipped: true, reason: "no source files" }, issues: [], duration: Date.now() - start };
+		return {
+			name: "type-safety",
+			score: 100,
+			grade: "A",
+			details: { skipped: true, reason: "no source files" },
+			issues: [],
+			duration: Date.now() - start,
+		};
 	}
 
 	for (const file of files) {
 		const content = readFileSync(file, "utf-8");
-		const relPath = file.replace(cwd + "/", "");
+		const relPath = file.replace(`${cwd}/`, "");
 		const lines = content.split("\n");
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			if (line.trim().startsWith("//")) continue;
+			const trimmed = line.trim();
+			if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
+			// Skip pattern definition lines (prevents false positives when scanning own code)
+			if (/\bpattern\s*:|name:\s*["']|message:\s*["']|description:\s*["']|risk:\s*["']|recommendation:\s*["']/.test(trimmed)) continue;
 
 			for (const p of PATTERNS) {
 				const matches = line.match(p.pattern);

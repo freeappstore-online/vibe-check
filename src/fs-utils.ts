@@ -24,7 +24,9 @@ export function collectSourceFiles(cwd: string, opts?: { includeTests?: boolean;
 	for (const dir of dirs) {
 		try {
 			walk(join(cwd, dir), cwd, files, opts?.extraExts ? ALL_EXTS : CODE_EXTS);
-		} catch { /* dir doesn't exist */ }
+		} catch {
+			/* dir doesn't exist */
+		}
 	}
 	if (opts?.includeTests) return files;
 	return files;
@@ -75,7 +77,7 @@ function walk(dir: string, cwd: string, out: SourceFile[], exts: Set<string>): v
 			// Skip files over 1MB to prevent memory issues (M1)
 			if (statSync(full).size > 1_000_000) continue;
 			const content = readFileSync(full, "utf-8");
-			const relPath = full.replace(cwd + "/", "");
+			const relPath = full.replace(`${cwd}/`, "");
 			const isTest = entry.includes(".test.") || entry.includes(".spec.") || relPath.includes("__tests__");
 			out.push({
 				path: relPath,

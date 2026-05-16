@@ -10,10 +10,7 @@ export function runTypeCheck(cwd: string): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	if (
-		!existsSync(join(cwd, "tsconfig.json")) &&
-		!existsSync(join(cwd, "tsconfig.app.json"))
-	) {
+	if (!existsSync(join(cwd, "tsconfig.json")) && !existsSync(join(cwd, "tsconfig.app.json"))) {
 		return {
 			name: "types",
 			score: 0,
@@ -32,7 +29,7 @@ export function runTypeCheck(cwd: string): CheckResult {
 			issues.push({
 				severity: "error",
 				file: match[1],
-				line: parseInt(match[2]),
+				line: parseInt(match[2], 10),
 				rule: match[3],
 				message: match[4],
 			});
