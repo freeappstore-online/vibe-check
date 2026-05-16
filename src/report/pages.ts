@@ -1,10 +1,11 @@
 /** Page renderers for the HTML report. */
 
 import { getCheckMeta } from "../check-meta.js";
+import { loadHistory } from "../history.js";
 import { generateArchSVG } from "../runners/architecture.js";
 import type { CheckResult, VibeReport } from "../types.js";
 import { e, gc, pc } from "./components.js";
-import { buildRadar, buildRing } from "./svg.js";
+import { buildPyramid, buildRadar, buildRing, buildTimeline } from "./svg.js";
 
 export interface CatScore {
 	id: string;
@@ -23,20 +24,32 @@ export interface FileEntry {
 
 type FL = (path: string, line?: number) => string;
 
+// ── Overview ──────────────────────────────────────────────────────────
+
 export function overviewPage(
 	report: VibeReport,
 	active: CheckResult[],
 	totalIssues: number,
 	catScores: CatScore[],
+	allChecks: CheckResult[],
+	topFiles: FileEntry[],
+	fl: FL,
+	historyDir?: string,
 ): string {
-	const ringPct = report.score;
-	const barChart = active
-		.sort((a, b) => a.score - b.score)
-		.map((c) => {
-			return `<div class="brow"><span class="bl">${e(c.name)}</span><div class="bb"><div class="bf" style="width:${c.score}%;background:${gc(c.grade)}"></div></div><span class="bv" style="color:${gc(c.grade)}">${c.grade} ${c.score}</span></div>`;
-		})
-		.join("");
+	// Hero: score ring + grade
+	const hero = `<div class="hero">
+    ${buildRing(report.score, gc(report.grade))}
+    <div class="hc">
+      <span class="hg" style="color:${gc(report.grade)}">${report.grade}</span>
+      <span class="hs" style="color:${gc(report.grade)}">${report.score}/100</span>
+      <span class="hd">${active.length} checks \u00b7 ${totalIssues} issues \u00b7 ${report.meta.duration}ms</span>
+    </div>
+  </div>`;
 
+	// Radar chart
+	const radarSvg = buildRadar(catScores.map((cs) => ({ label: cs.label, score: cs.avg })));
+
+	// Category cards
 	const catCards = catScores
 		.map((cs) => {
 			const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
@@ -50,25 +63,74 @@ export function overviewPage(
 		})
 		.join("");
 
-	const radarSvg = buildRadar(catScores.map((cs) => ({ label: cs.label, score: cs.avg })));
+	// Score timeline (from history)
+	let timelineSection = "";
+	if (historyDir) {
+		const history = loadHistory(historyDir);
+		if (history.length >= 2) {
+			const timelineSvg = buildTimeline(history.map((h) => ({ score: h.score, timestamp: h.timestamp })));
+			timelineSection = `<div class="ov-section"><h3>Score Timeline</h3><div class="timeline">${timelineSvg}</div></div>`;
+		}
+	}
+
+	// All checks bar chart
+	const barChart = active
+		.sort((a, b) => a.score - b.score)
+		.map((c) => {
+			return `<div class="brow"><span class="bl">${e(c.name)}</span><div class="bb"><div class="bf" style="width:${c.score}%;background:${gc(c.grade)}"></div></div><span class="bv" style="color:${gc(c.grade)}">${c.grade} ${c.score}</span></div>`;
+		})
+		.join("");
+
+	// Top issues preview (10 most severe)
+	const allIssues = allChecks.flatMap((c) => c.issues.map((i) => ({ check: c.name, ...i })));
+	const sortedIssues = allIssues
+		.sort((a, b) => (a.severity === "error" ? 0 : a.severity === "warning" ? 1 : 2) - (b.severity === "error" ? 0 : b.severity === "warning" ? 1 : 2))
+		.slice(0, 10);
+
+	let topIssuesHtml = "";
+	if (sortedIssues.length > 0) {
+		const rows = sortedIssues
+			.map((i) => {
+				const loc = i.file ? fl(i.file.split(":")[0]!, i.line) : "";
+				return `<div class="ov-issue ${i.severity}"><span class="is">${i.severity[0]!.toUpperCase()}</span><span class="ov-check">${e(i.check)}</span>${loc ? `<span class="ov-loc">${loc}</span>` : ""}<span class="ov-msg">${e(i.message)}</span></div>`;
+			})
+			.join("");
+		const viewAll = allIssues.length > 10 ? `<a class="ov-link" onclick="go('issues')">View all ${allIssues.length} issues \u2192</a>` : "";
+		topIssuesHtml = `<div class="ov-section"><h3>Top Issues</h3>${rows}${viewAll}</div>`;
+	}
+
+	// File hotspots preview (top 5)
+	let fileHotspotsHtml = "";
+	if (topFiles.length > 0) {
+		const fileRows = topFiles.slice(0, 5).map((f) => {
+			const pct = Math.min(100, f.total * 5);
+			return `<div class="fr"><span class="ff">${fl(f.file)}</span><div class="fb"><div class="fbf" style="width:${pct}%;background:${f.errors > 0 ? "var(--fail)" : "var(--warn)"}"></div></div><span class="fv">${f.errors}E ${f.warnings}W</span></div>`;
+		}).join("");
+		const viewAll = topFiles.length > 5 ? `<a class="ov-link" onclick="go('files')">View all ${topFiles.length} files \u2192</a>` : "";
+		fileHotspotsHtml = `<div class="ov-section"><h3>File Hotspots</h3>${fileRows}${viewAll}</div>`;
+	}
+
+	// Stack badges
+	const stackHtml = Object.entries(report.meta.stack)
+		.filter(([, v]) => v !== "none" && v !== "unknown")
+		.map(([k, v]) => `<span>${k}: <b>${v}</b></span>`)
+		.join("");
 
 	return `<div id="p-overview" class="page active">
 <div class="dash">
-  <div class="hero">
-    ${buildRing(ringPct, gc(report.grade))}
-    <div class="hc"><span class="hg" style="color:${gc(report.grade)}">${report.grade}</span><span class="hs" style="color:${gc(report.grade)}">${report.score}/100</span><span class="hd">${active.length} checks \u00b7 ${totalIssues} issues \u00b7 ${report.meta.duration}ms</span></div>
-  </div>
+  ${hero}
   <div class="radar">${radarSvg}</div>
 </div>
 <div class="cats">${catCards}</div>
-<h3>All Checks</h3>
-<div class="bars">${barChart}</div>
-<div class="stack">${Object.entries(report.meta.stack)
-		.filter(([, v]) => v !== "none" && v !== "unknown")
-		.map(([k, v]) => `<span>${k}: <b>${v}</b></span>`)
-		.join("")}</div>
+${timelineSection}
+<div class="ov-section"><h3>All Checks</h3><div class="bars">${barChart}</div></div>
+${topIssuesHtml}
+${fileHotspotsHtml}
+<div class="stack">${stackHtml}</div>
 </div>`;
 }
+
+// ── Category dimension pages ──────────────────────────────────────────
 
 export function categoryPages(catScores: CatScore[], fl: FL): string {
 	let catPagesHtml = "";
@@ -111,14 +173,14 @@ export function categoryPages(catScores: CatScore[], fl: FL): string {
 					issuesHtml += `<div class="fg"><div class="fn">${fl(file)} <span class="fc">${issues.length}</span></div>`;
 					for (const iss of issues) {
 						const prompt = `Fix this issue in ${file}${iss.line ? `:${iss.line}` : ""}\n${iss.severity}: ${iss.message}${iss.rule ? ` (${iss.rule})` : ""}\nCheck: ${c.name}`;
-						issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" data-prompt="${e(prompt)}" title="Copy fix prompt">\ud83d\udccb</button></div>`;
+						issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0]!.toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" data-prompt="${e(prompt)}" title="Copy fix prompt">\ud83d\udccb</button></div>`;
 					}
 					issuesHtml += `</div>`;
 				}
 				if (noFile.length > 0) {
 					issuesHtml += `<div class="fg"><div class="fn">General</div>`;
 					for (const iss of noFile) {
-						issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span><span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}</div>`;
+						issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0]!.toUpperCase()}</span><span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}</div>`;
 					}
 					issuesHtml += `</div>`;
 				}
@@ -128,6 +190,7 @@ export function categoryPages(catScores: CatScore[], fl: FL): string {
 ${meta.description ? `<div class="info-panel"><div class="ip-row"><span class="ip-label">What</span><span>${e(meta.description)}</span></div><div class="ip-row"><span class="ip-label">Risk</span><span>${e(meta.risk)}</span></div><div class="ip-row"><span class="ip-label">Fix</span><span>${e(meta.recommendation)}</span></div></div>` : ""}
 ${sk ? `<p class="skip-r">${e((c.details as any).reason || "skipped")}</p>` : ""}
 ${c.name === "architecture" && !sk ? `<div class="arch-svg">${generateArchSVG(c.details)}</div>` : ""}
+${c.name === "testing" && !sk && (c.details as any).pyramid ? `<div class="arch-svg">${buildPyramid((c.details as any).pyramid)}</div>` : ""}
 ${detailsFiltered ? `<div class="kvs">${detailsFiltered}</div>` : ""}
 ${issuesHtml ? `<div class="iss-list">${issuesHtml}</div>` : '<p style="color:var(--muted);font-size:0.8rem;margin-top:1rem">No issues found.</p>'}
 </div>`;
@@ -145,64 +208,59 @@ ${subPages}
 	return catPagesHtml;
 }
 
+// ── Issues view (cross-cutting) ──────────────────────────────────────
+
 export function issuesPage(allChecks: CheckResult[], totalIssues: number, fl: FL): string {
 	const allIssues = allChecks.flatMap((c) => c.issues.map((i) => ({ check: c.name, ...i })));
+	const errorCount = allIssues.filter((i) => i.severity === "error").length;
+	const warnCount = allIssues.filter((i) => i.severity === "warning").length;
+	const infoCount = allIssues.filter((i) => i.severity === "info").length;
+
 	const issueRows = allIssues
+		.sort((a, b) => (a.severity === "error" ? 0 : a.severity === "warning" ? 1 : 2) - (b.severity === "error" ? 0 : b.severity === "warning" ? 1 : 2))
 		.slice(0, 200)
 		.map((i) => {
 			const loc = i.file ? fl(i.file.split(":")[0]!, i.line) : "";
-			return `<tr class="${i.severity}"><td class="is2">${i.severity[0].toUpperCase()}</td><td class="ic2">${e(i.check)}</td><td class="il2">${loc}</td><td>${e(i.message)}</td><td class="iru2">${e(i.rule || "")}</td></tr>`;
+			return `<tr class="${i.severity}"><td class="is2">${i.severity[0]!.toUpperCase()}</td><td class="ic2">${e(i.check)}</td><td class="il2">${loc}</td><td>${e(i.message)}</td><td class="iru2">${e(i.rule || "")}</td></tr>`;
 		})
 		.join("");
 
 	return `<div id="p-issues" class="page">
 <h2>All Issues <span style="color:var(--muted);font-weight:400">${totalIssues}</span></h2>
-<div class="isf">${allIssues.filter((i) => i.severity === "error").length} errors \u00b7 ${allIssues.filter((i) => i.severity === "warning").length} warnings</div>
+<div class="isf"><span style="color:var(--fail)">${errorCount} errors</span> \u00b7 <span style="color:var(--warn)">${warnCount} warnings</span>${infoCount > 0 ? ` \u00b7 <span style="color:var(--info)">${infoCount} info</span>` : ""}</div>
 <table class="it"><thead><tr><th></th><th>Check</th><th>Location</th><th>Message</th><th>Rule</th></tr></thead><tbody>${issueRows}</tbody></table>
 ${allIssues.length > 200 ? `<p style="color:var(--muted);text-align:center;margin-top:1rem">Showing 200 of ${allIssues.length}</p>` : ""}
 </div>`;
 }
 
-export function filesPage(topFiles: FileEntry[], fl: FL): string {
-	const fileRows = topFiles
+// ── Files view (merged file map + heatmap) ───────────────────────────
+
+export function filesPage(
+	topFiles: FileEntry[],
+	fileIssues: Map<string, { errors: number; warnings: number; checks: Set<string> }>,
+	fl: FL,
+): string {
+	if (topFiles.length === 0) {
+		return `<div id="p-files" class="page"><h2>File Health</h2><p style="color:var(--muted)">No file-level issues found.</p></div>`;
+	}
+
+	// Heatmap (visual density bars)
+	const maxIssues = Math.max(...topFiles.map((f) => f.total));
+	const heatmapRows = topFiles
+		.slice(0, 30)
 		.map((f) => {
-			const pct = Math.min(100, f.total * 5);
-			return `<div class="fr"><span class="ff">${fl(f.file)}</span><div class="fb"><div class="fbf" style="width:${pct}%;background:${f.errors > 0 ? "var(--fail)" : "var(--warn)"}"></div></div><span class="fv">${f.errors}E ${f.warnings}W</span><span class="fcs">${f.checks.join(", ")}</span></div>`;
+			const intensity = maxIssues > 0 ? f.total / maxIssues : 0;
+			const r = Math.round(239 * intensity);
+			const g = Math.round(68 * (1 - intensity) + 197 * (f.errors === 0 ? 0.3 : 0));
+			const color = `rgb(${r},${g},30)`;
+			const barW = Math.max(4, Math.round(intensity * 200));
+			return `<div class="hm-row"><span class="hm-name">${fl(f.file)}</span><div class="hm-bar" style="width:${barW}px;background:${color}" title="${f.total} issues (${f.checks.join(", ")})"></div><span class="hm-count">${f.errors}E ${f.warnings}W</span><span class="hm-checks">${f.checks.join(", ")}</span></div>`;
 		})
 		.join("");
 
 	return `<div id="p-files" class="page">
-<h2>File Heatmap</h2>
-<p style="color:var(--muted);font-size:0.78rem;margin-bottom:1rem">Top ${topFiles.length} files by total issues across all checks</p>
-${fileRows || '<p style="color:var(--muted)">No file-level issues found.</p>'}
-</div>`;
-}
-
-export function heatmapPage(
-	fileIssues: Map<string, { errors: number; warnings: number; checks: Set<string> }>,
-	fl: FL,
-): string {
-	const heatmapFiles = [...fileIssues.entries()].sort((a, b) => b[1].errors + b[1].warnings - a[1].errors - a[1].warnings).slice(0, 30);
-	let heatmapHtml = "";
-	if (heatmapFiles.length > 0) {
-		const maxIssues = Math.max(...heatmapFiles.map(([, d]) => d.errors + d.warnings));
-		heatmapHtml = heatmapFiles
-			.map(([file, d]) => {
-				const total = d.errors + d.warnings;
-				const intensity = maxIssues > 0 ? total / maxIssues : 0;
-				const r = Math.round(239 * intensity); // red channel
-				const g = Math.round(68 * (1 - intensity) + 197 * (d.errors === 0 ? 0.3 : 0)); // green
-				const color = `rgb(${r},${g},30)`;
-				const barW = Math.max(4, Math.round(intensity * 200));
-				const checks = [...d.checks].join(", ");
-				return `<div class="hm-row"><span class="hm-name">${fl(file)}</span><div class="hm-bar" style="width:${barW}px;background:${color}" title="${total} issues (${checks})"></div><span class="hm-count">${d.errors}E ${d.warnings}W</span></div>`;
-			})
-			.join("");
-	}
-
-	return `<div id="p-heatmap" class="page">
-<h2>Code Heatmap</h2>
-<p style="color:var(--muted);font-size:0.78rem;margin-bottom:1rem">Visual density of issues per file. Red = errors, orange = warnings. Bar width = relative issue count.</p>
-${heatmapHtml || '<p style="color:var(--muted)">No issues to visualize.</p>'}
+<h2>File Health</h2>
+<p style="color:var(--muted);font-size:0.78rem;margin-bottom:1rem">${fileIssues.size} files with issues across ${topFiles.reduce((s, f) => { for (const c of f.checks) s.add(c); return s; }, new Set<string>()).size} checks. Bar color: red = errors, orange = warnings only. Width = relative issue density.</p>
+${heatmapRows}
 </div>`;
 }

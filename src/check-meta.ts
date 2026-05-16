@@ -80,7 +80,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Error Handling",
 		category: "Quality",
 		priority: "high",
-		weight: 2,
+		weight: 3,
 		description: "Detects poor error handling: empty catch blocks, throw with string literals, catch-and-rethrow without context, Promise.then() without .catch(), missing React Error Boundaries.",
 		risk: "Empty catch blocks silently swallow errors. throw 'string' loses stack traces. Missing Error Boundaries in React cause the entire app to crash on render errors.",
 		recommendation: "Handle or log every catch. Use throw new Error() for stack traces. Add Error Boundaries in React. Chain .catch() on promises.",
@@ -126,7 +126,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Testing",
 		category: "Testing",
 		priority: "critical",
-		weight: 22,
+		weight: 17,
 		description:
 			"Deep assessment of test quality across 6 dimensions: pyramid presence (unit/integration/component/E2E layers), test execution (pass/fail), coverage (statement/branch/line/function), file pairing (test file per source file), test quality (assertion density, mock ratio, snapshot ratio), and E2E tool detection (Playwright/Cypress).",
 		risk: "Code without tests is code you can't safely change. Missing test layers mean entire categories of bugs go undetected: unit tests catch logic bugs, integration tests catch API contract breaks, E2E tests catch user-visible regressions. Low coverage means large portions of code are never exercised.",
@@ -174,7 +174,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Architecture",
 		category: "Architecture",
 		priority: "high",
-		weight: 7,
+		weight: 6,
 		description:
 			"Analyzes the import graph to detect structural problems: circular dependencies, god modules (imported by >50% of files), orphan modules (dead code), high fan-out (importing too many modules), and connector modules (high coupling). Generates an SVG architecture diagram.",
 		risk: "Circular dependencies create build order issues and make refactoring impossible without breaking changes. God modules become bottlenecks — any change ripples through the entire codebase. High coupling means you can't change one module without testing everything it touches.",
@@ -186,7 +186,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Confusion Index",
 		category: "LLM Readiness",
 		priority: "high",
-		weight: 8,
+		weight: 7,
 		description:
 			"Measures naming ambiguity that causes LLMs to misunderstand or edit the wrong code. Checks: file name confusability (Levenshtein distance + synonym detection), generic function/variable names, export name collisions across files, and ambiguous abbreviations.",
 		risk: "GPT-4o drops 28.6 percentage points on code summarization when names are ambiguous (arXiv:2510.03178). LLMs editing similar-named files is the #1 reported failure mode in AI-assisted development. Generic names like process(), handle(), data cause models to misinterpret intent.",
@@ -198,12 +198,36 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Context Locality",
 		category: "LLM Readiness",
 		priority: "high",
-		weight: 7,
+		weight: 6,
 		description:
 			"Measures how self-contained code is for LLM consumption. Checks: token density per file, import count, circular dependencies, and context sinks (files that import many modules but export little). Based on the finding that LLMs lose 30%+ accuracy for information in the middle of long contexts.",
 		risk: "Files over ~4000 tokens exceed the 'sweet spot' for LLM attention (Liu et al. 2023 'Lost in the Middle'). Circular dependencies create infinite loops in LLM code navigation. Heavy import chains force LLMs to load many files, burning context window budget (Chroma 'Context Rot' 2025).",
 		recommendation:
 			"Keep files under 400 lines / 4000 tokens. Limit imports to <15 per file. Break circular dependencies. Co-locate related code to reduce cross-file jumps.",
+	},
+	react: {
+		name: "react",
+		label: "React Patterns",
+		category: "Quality",
+		priority: "high",
+		weight: 3,
+		description:
+			"Checks React-specific patterns: conditional hook calls (violates Rules of Hooks), missing key props in .map(), index as key, prop spreading on DOM elements, and excessive inline handlers.",
+		risk: "Conditional hooks cause React to crash at runtime. Missing keys cause incorrect reconciliation — items can swap, duplicate, or lose state. Index keys break when lists are reordered or filtered.",
+		recommendation:
+			"Never call hooks inside conditions, loops, or nested functions. Always provide a unique, stable key in .map(). Avoid spreading unknown props onto DOM elements. Extract inline handlers for readability.",
+	},
+	accessibility: {
+		name: "accessibility",
+		label: "Accessibility",
+		category: "Quality",
+		priority: "high",
+		weight: 4,
+		description:
+			"Checks common accessibility violations: images without alt text, click handlers on non-interactive elements without keyboard support, form controls without labels, autoFocus usage, positive tabIndex, and missing html lang attribute.",
+		risk: "1 in 4 adults has a disability (CDC). Missing alt text makes images invisible to screen readers. Click-only divs exclude keyboard users. Unlabeled inputs are unusable with assistive technology. Missing lang attribute breaks screen reader pronunciation.",
+		recommendation:
+			"Add alt text to all images (use alt=\"\" for decorative). Use <button> for clickable elements, not <div onClick>. Label all form controls with <label>, aria-label, or aria-labelledby. Set lang on <html>.",
 	},
 };
 

@@ -14,6 +14,8 @@ import { runDocs } from "./runners/docs.js";
 import { runDuplication } from "./runners/duplication.js";
 import { runErrorHandling } from "./runners/error-handling.js";
 import { runLint } from "./runners/lint.js";
+import { runReact } from "./runners/react.js";
+import { runAccessibility } from "./runners/accessibility.js";
 import { runSecrets } from "./runners/secrets.js";
 import { runSecurity } from "./runners/security.js";
 import { runStandards } from "./runners/standards.js";
@@ -36,6 +38,7 @@ const jsonOnly = flags.has("--json");
 const ciMode = flags.has("--ci");
 const skipTests = flags.has("--skip-tests");
 const watchMode = flags.has("--watch");
+const badgeMode = flags.has("--badge");
 
 function color(grade: string): string {
 	if (grade === "A") return "\x1b[32m";
@@ -76,6 +79,8 @@ async function main() {
 		{ name: "complexity", fn: () => runComplexity(cwd) },
 		{ name: "duplication", fn: () => runDuplication(cwd) },
 		{ name: "error-handling", fn: () => runErrorHandling(cwd, stack) },
+		{ name: "react", fn: () => runReact(cwd, stack) },
+		{ name: "accessibility", fn: () => runAccessibility(cwd) },
 		{ name: "docs", fn: () => runDocs(cwd) },
 		// Testing
 		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },
@@ -144,7 +149,14 @@ async function main() {
 	}
 
 	writeFileSync(join(outputDir, "report.json"), JSON.stringify(report, null, 2));
-	writeFileSync(join(outputDir, "report.html"), generateHTML(report));
+	writeFileSync(join(outputDir, "report.html"), generateHTML(report, historyDir));
+
+	// Badge SVG
+	if (badgeMode) {
+		const { buildBadge } = await import("./report/svg.js");
+		const badgeSvg = buildBadge(score, grade);
+		writeFileSync(join(outputDir, "badge.svg"), badgeSvg);
+	}
 
 	if (jsonOnly) {
 		console.log(JSON.stringify(report));
@@ -158,6 +170,7 @@ async function main() {
 		console.log("");
 		console.log(`  \x1b[2mReport: ${join(outputDir, "report.html")}\x1b[0m`);
 		console.log(`  \x1b[2mJSON:   ${join(outputDir, "report.json")}\x1b[0m`);
+		if (badgeMode) console.log(`  \x1b[2mBadge:  ${join(outputDir, "badge.svg")}\x1b[0m`);
 		console.log("");
 	}
 

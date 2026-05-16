@@ -1,30 +1,32 @@
 /** Generate a multi-page navigable HTML report.
  *
  * Architecture:
- *   Top nav:    Overview | Foundations | Quality | Testing | Security | Issues
- *   Sub-nav:    Tabs for each check within a category
- *   Detail:     Per-check stats + full issue list grouped by file
- *   File map:   Cross-check heatmap of issues per file
+ *   Primary nav:   Overview | Foundations | Quality | Testing | Security | Architecture | AI Readiness
+ *   Secondary nav:  Issues (N) | Files  (right-aligned, visually distinct)
+ *   Sidebar:        Score + dimension tree + view links
+ *   Overview:       Dashboard with score, radar, timeline, category cards, top issues, file hotspots
+ *   Dimensions:     Sub-tabs for each check within a category
+ *   Views:          Cross-cutting data slices (issues table, file health map)
  *
- * All in one self-contained HTML file using hash routing + show/hide.
+ * All in one self-contained HTML file using show/hide navigation.
  */
 
 import { getCheckMeta } from "../check-meta.js";
 import type { CheckResult, VibeReport } from "../types.js";
 import { e, fileLink, gc } from "./components.js";
-import { categoryPages, filesPage, heatmapPage, issuesPage, overviewPage, type CatScore } from "./pages.js";
+import { categoryPages, filesPage, issuesPage, overviewPage, type CatScore } from "./pages.js";
 import { CSS } from "./styles.js";
 
 const GROUPS: { id: string; label: string; checks: string[] }[] = [
 	{ id: "foundations", label: "Foundations", checks: ["structure", "lint", "types", "type-safety", "standards"] },
-	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "error-handling", "docs"] },
+	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "error-handling", "react", "accessibility", "docs"] },
 	{ id: "testing", label: "Testing", checks: ["testing"] },
 	{ id: "arch", label: "Architecture", checks: ["architecture"] },
 	{ id: "security", label: "Security", checks: ["secrets", "security", "dependencies"] },
-	{ id: "llm", label: "LLM Readiness", checks: ["confusion", "context"] },
+	{ id: "llm", label: "AI Readiness", checks: ["confusion", "context"] },
 ];
 
-export function generateHTML(report: VibeReport): string {
+export function generateHTML(report: VibeReport, historyDir?: string): string {
 	const allChecks = report.checks;
 	const checkMap = new Map(allChecks.map((c) => [c.name, c]));
 	const active = allChecks.filter((c) => !(c.details as any).skipped);
@@ -34,12 +36,12 @@ export function generateHTML(report: VibeReport): string {
 	const totalIssues = allChecks.reduce((s, c) => s + c.issues.length, 0);
 	const proj = report.meta.cwd.split("/").pop() || "project";
 
-	// ── File heatmap: aggregate issues per file across all checks ──
+	// ── Aggregate file issues across all checks ──
 	const fileIssues = new Map<string, { errors: number; warnings: number; checks: Set<string> }>();
 	for (const c of allChecks) {
 		for (const iss of c.issues) {
 			if (!iss.file) continue;
-			const f = iss.file.split(":")[0]!; // strip :line from composite file fields
+			const f = iss.file.split(":")[0]!;
 			const entry = fileIssues.get(f) || { errors: 0, warnings: 0, checks: new Set() };
 			if (iss.severity === "error") entry.errors++;
 			else entry.warnings++;
@@ -50,7 +52,7 @@ export function generateHTML(report: VibeReport): string {
 	const topFiles = [...fileIssues.entries()]
 		.map(([file, d]) => ({ file, total: d.errors + d.warnings, errors: d.errors, warnings: d.warnings, checks: [...d.checks] }))
 		.sort((a, b) => b.total - a.total)
-		.slice(0, 20);
+		.slice(0, 30);
 
 	// ── Category averages ──
 	const catScores: CatScore[] = GROUPS.map((g) => {
@@ -60,18 +62,23 @@ export function generateHTML(report: VibeReport): string {
 		return { ...g, avg, checks };
 	});
 
-	// ── Top nav ──
-	const topNavItems = [
+	// ── Primary nav (dimensions) ──
+	const dimNavItems = [
 		{ id: "overview", label: "Overview" },
 		...GROUPS.map((g) => ({ id: g.id, label: g.label })),
-		{ id: "issues", label: `Issues (${totalIssues})` },
-		{ id: "files", label: "File Map" },
-		{ id: "heatmap", label: "Heatmap" },
 	];
-	const topNav = topNavItems.map((t) => `<a class="tn" data-page="${t.id}" onclick="go('${t.id}')">${t.label}</a>`).join("");
+	const dimNav = dimNavItems.map((t) => `<a class="tn" data-page="${t.id}" onclick="go('${t.id}')">${t.label}</a>`).join("");
+
+	// ── Secondary nav (data views, right-aligned) ──
+	const viewNav = [
+		{ id: "issues", label: `Issues (${totalIssues})` },
+		{ id: "files", label: "Files" },
+	]
+		.map((t) => `<a class="tn tn-view" data-page="${t.id}" onclick="go('${t.id}')">${t.label}</a>`)
+		.join("");
 
 	// ── Sidebar ──
-	const sidebar = catScores
+	const sidebarDims = catScores
 		.map((cs) => {
 			const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
 			return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} <span style="color:${clr}">${cs.avg}</span></a>${cs.checks
@@ -84,12 +91,13 @@ export function generateHTML(report: VibeReport): string {
 		})
 		.join("");
 
+	const sidebarViews = `<div class="side-section side-views"><div class="side-views-label">Views</div><a class="side-check" onclick="go('issues')">Issues <span style="color:var(--muted)">${totalIssues}</span></a><a class="side-check" onclick="go('files')">Files <span style="color:var(--muted)">${fileIssues.size}</span></a></div>`;
+
 	// ── Assemble pages ──
-	const overview = overviewPage(report, active, totalIssues, catScores);
+	const overview = overviewPage(report, active, totalIssues, catScores, allChecks, topFiles, fl, historyDir);
 	const catPages = categoryPages(catScores, fl);
 	const issues = issuesPage(allChecks, totalIssues, fl);
-	const files = filesPage(topFiles, fl);
-	const heatmap = heatmapPage(fileIssues, fl);
+	const files = filesPage(topFiles, fileIssues, fl);
 
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -103,19 +111,20 @@ export function generateHTML(report: VibeReport): string {
 
 <nav class="top">
   <div class="logo"><span>VibeCode</span> QA</div>
-  ${topNav}
+  <div class="nav-dims">${dimNav}</div>
+  <div class="nav-views">${viewNav}</div>
 </nav>
 
 <aside class="side">
   <div class="side-section">Score<div class="side-score" style="color:${gc(report.grade)}">${report.grade} ${report.score}</div></div>
-  ${sidebar}
+  ${sidebarDims}
+  ${sidebarViews}
 </aside>
 <div class="content">
   ${overview}
   ${catPages}
   ${issues}
   ${files}
-  ${heatmap}
   <div class="footer">Generated by <a href="https://vibecodeqa.online">VibeCode QA</a> v${report.version} &mdash; <code>npx @vibecodeqa/cli</code></div>
 </div>
 
@@ -131,7 +140,7 @@ function sub(el,cat){
   el.classList.add('active');
   document.querySelectorAll('#p-'+cat+' .sp').forEach(s=>{s.classList.toggle('active',s.dataset.sub===id)});
 }
-// Copy-prompt buttons — read from data-attribute (no inline JS with user data)
+// Copy-prompt buttons
 document.addEventListener('click',function(ev){
   var btn=ev.target.closest('.cp-btn');
   if(!btn)return;
