@@ -1,6 +1,6 @@
 /** Shared filesystem utilities — eliminates duplicate file-walking across runners. */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, extname, join } from "node:path";
 
 export interface SourceFile {
@@ -65,11 +65,15 @@ function walk(dir: string, cwd: string, out: SourceFile[], exts: Set<string>): v
 	for (const entry of readdirSync(dir)) {
 		if (SKIP_DIRS.has(entry)) continue;
 		const full = join(dir, entry);
+		// Skip symlinks to prevent traversal attacks (H3)
+		if (lstatSync(full).isSymbolicLink()) continue;
 		if (statSync(full).isDirectory()) {
 			walk(full, cwd, out, exts);
 		} else {
 			const ext = extname(entry);
 			if (!exts.has(ext)) continue;
+			// Skip files over 1MB to prevent memory issues (M1)
+			if (statSync(full).size > 1_000_000) continue;
 			const content = readFileSync(full, "utf-8");
 			const relPath = full.replace(cwd + "/", "");
 			const isTest = entry.includes(".test.") || entry.includes(".spec.") || relPath.includes("__tests__");

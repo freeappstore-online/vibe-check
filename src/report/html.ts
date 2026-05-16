@@ -14,12 +14,12 @@ import { generateArchSVG } from "../runners/architecture.js";
 import type { CheckResult, VibeReport } from "../types.js";
 
 function e(s: string): string {
-	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 /** Make a file path a clickable GitHub link if repoUrl is available. */
 function fileLink(path: string, line: number | undefined, repoUrl: string | null, branch: string): string {
-	const clean = path.split(":")[0]!; // strip :line from composite paths
-	if (!repoUrl) return e(path);
+	const clean = path.split(":")[0]!;
+	if (!repoUrl || !/^https?:\/\//.test(repoUrl)) return e(path);
 	const href = `${repoUrl}/blob/${branch}/${clean}${line ? "#L" + line : ""}`;
 	return `<a href="${e(href)}" target="_blank" rel="noopener" class="flink">${e(path)}</a>`;
 }
@@ -152,9 +152,8 @@ export function generateHTML(report: VibeReport): string {
 			for (const [file, issues] of byFile) {
 				issuesHtml += `<div class="fg"><div class="fn">${fl(file)} <span class="fc">${issues.length}</span></div>`;
 				for (const iss of issues) {
-					const promptText = `Fix this issue in ${e(file)}${iss.line ? ":" + iss.line : ""}\n${iss.severity}: ${e(iss.message)}${iss.rule ? " (" + e(iss.rule) + ")" : ""}\nCheck: ${e(c.name)}`;
-					const safePrompt = promptText.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, "\\n");
-					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" onclick="navigator.clipboard.writeText('${safePrompt}');this.textContent='✓';setTimeout(()=>this.textContent='📋',1000)" title="Copy fix prompt">📋</button></div>`;
+					const prompt = `Fix this issue in ${file}${iss.line ? ":" + iss.line : ""}\n${iss.severity}: ${iss.message}${iss.rule ? " (" + iss.rule + ")" : ""}\nCheck: ${c.name}`;
+					issuesHtml += `<div class="ir ${iss.severity}"><span class="is">${iss.severity[0].toUpperCase()}</span>${iss.line ? `<span class="il">${iss.line}</span>` : ""}<span class="im">${e(iss.message)}</span>${iss.rule ? `<span class="iru">${e(iss.rule)}</span>` : ""}<button class="cp-btn" data-prompt="${e(prompt)}" title="Copy fix prompt">📋</button></div>`;
 				}
 				issuesHtml += `</div>`;
 			}
@@ -411,6 +410,13 @@ function sub(el,cat){
   el.classList.add('active');
   document.querySelectorAll('#p-'+cat+' .sp').forEach(s=>{s.classList.toggle('active',s.dataset.sub===id)});
 }
+// Copy-prompt buttons — read from data-attribute (no inline JS with user data)
+document.addEventListener('click',function(ev){
+  var btn=ev.target.closest('.cp-btn');
+  if(!btn)return;
+  navigator.clipboard.writeText(btn.dataset.prompt||'');
+  btn.textContent='\\u2713';setTimeout(function(){btn.textContent='\\ud83d\\udccb'},1000);
+});
 // Init: show overview
 document.querySelector('.tn').classList.add('active');
 </script>

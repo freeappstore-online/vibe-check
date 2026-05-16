@@ -155,9 +155,9 @@ async function main() {
 
 	if (!jsonOnly && !ciMode && !watchMode) {
 		try {
-			const { execSync } = await import("node:child_process");
+			const { execFileSync } = await import("node:child_process");
 			const openCmd = process.platform === "darwin" ? "open" : "xdg-open";
-			execSync(`${openCmd} "${join(outputDir, "report.html")}"`, { stdio: "ignore" });
+			execFileSync(openCmd, [join(outputDir, "report.html")], { stdio: "ignore" });
 		} catch { /* failed to open browser */ }
 	}
 
@@ -174,13 +174,17 @@ async function main() {
 		console.log("");
 
 		let debounce: ReturnType<typeof setTimeout> | null = null;
+		let running = false;
 		for (const dir of srcDirs) {
 			watch(dir, { recursive: true }, (_event, filename) => {
 				if (!filename || filename.includes("node_modules") || filename.includes(".vibe-check")) return;
+				if (running) return; // prevent concurrent re-runs (M5)
 				if (debounce) clearTimeout(debounce);
-				debounce = setTimeout(() => {
+				debounce = setTimeout(async () => {
+					running = true;
 					console.log(`  \x1b[2mChanged: ${filename} — re-scanning...\x1b[0m`);
-					main().catch(() => {});
+					await main().catch(() => {});
+					running = false;
 				}, 500);
 			});
 		}
