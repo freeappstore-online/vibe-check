@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /** vibe-check — code health scanner for the AI coding era. */
 
-import { existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { detectRepoUrl, detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
@@ -25,7 +25,8 @@ import { computeTrend, formatTrend } from "./trend.js";
 import type { CheckResult, VibeReport } from "./types.js";
 import { gradeFromScore } from "./types.js";
 
-const VERSION = "0.11.0";
+const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8"));
+const VERSION: string = pkg.version;
 const args = process.argv.slice(2);
 const flags = new Set(args.filter((a) => a.startsWith("--")));
 const cwd = resolve(args.find((a) => !a.startsWith("--")) || ".");

@@ -25,6 +25,9 @@ npx @vibecodeqa/cli
 # Fast mode (skip test execution)
 npx @vibecodeqa/cli --skip-tests
 
+# Watch mode (re-scan on file changes)
+npx @vibecodeqa/cli --watch
+
 # CI mode (exit code 1 if score < 60)
 npx @vibecodeqa/cli --ci
 
@@ -36,8 +39,9 @@ npx @vibecodeqa/cli /path/to/project
 ```
 
 Output goes to `.vibe-check/`:
-- `report.html` — navigable dashboard (open in browser)
+- `report.html` — navigable multi-page dashboard (open in browser)
 - `report.json` — machine-readable results
+- `history/` — last 30 reports for trend tracking
 
 ## Checks
 
@@ -113,12 +117,18 @@ Each check produces a score from 0-100. The composite score is a weighted averag
 
 ## Report features
 
+The report is a multi-page navigable dashboard:
+
+- **10 pages**: Overview, Foundations, Quality, Testing, Architecture, Security, LLM Readiness, Issues, File Map, Heatmap
+- **Top nav + sidebar** — navigate by category and check
 - **Radar chart** — 6-axis view of category scores
-- **Architecture diagram** — SVG showing module relationships and import edges
-- **Trend comparison** — score delta vs. previous run
-- **File heatmap** — top files by issue count across all checks
-- **GitHub links** — click any file:line to open in GitHub
-- **Info panels** — each check explains what it measures, why it matters, and how to fix issues
+- **Architecture SVG diagram** — modules grouped by directory, import edges, node size by fan-in
+- **Code heatmap** — colored bars showing issue density per file
+- **Trend comparison** — score delta vs. previous run (reads previous report.json)
+- **File map** — top files by issue count across all checks
+- **GitHub links** — click any file:line to open in GitHub (auto-detected from git remote)
+- **Actionable prompts** — 📋 button on every issue copies a fix prompt for Claude/Codex
+- **Info panels** — each check has What/Risk/Fix explanations with research citations
 - **Priority badges** — critical/high/medium/low on each check
 
 ## Trend tracking
@@ -133,6 +143,7 @@ vcqa reads the previous `.vibe-check/report.json` on each run and shows:
 | Flag | Description |
 |------|-------------|
 | `--skip-tests` | Skip test execution and coverage (fast mode) |
+| `--watch` | Re-scan automatically on file changes |
 | `--ci` | Exit code 1 if composite score < 60 |
 | `--json` | Output JSON to stdout (no HTML, no browser) |
 
