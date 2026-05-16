@@ -144,7 +144,7 @@ async function main() {
 	}
 
 	writeFileSync(join(outputDir, "report.json"), JSON.stringify(report, null, 2));
-	writeFileSync(join(outputDir, "report.html"), generateHTML(report, historyDir));
+	writeFileSync(join(outputDir, "report.html"), generateHTML(report));
 
 	if (jsonOnly) {
 		console.log(JSON.stringify(report));
