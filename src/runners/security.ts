@@ -56,7 +56,7 @@ const PATTERNS: SecurityPattern[] = [
 	},
 	{
 		name: "child_process.exec",
-		pattern: /\bexec(?:Sync)?\s*\((?!.*\{[^}]*encoding)/,
+		pattern: /\bexec(?:Sync)?\s*\(/,
 		severity: "warning",
 		message: "Command injection risk: prefer execFile with argument array",
 		cwe: "CWE-78",

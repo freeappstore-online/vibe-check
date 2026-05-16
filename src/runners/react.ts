@@ -26,8 +26,8 @@ export function runReact(cwd: string, stack: StackInfo): CheckResult {
 	for (const f of files) {
 		const lines = f.content.split("\n");
 
-		// Track if we're inside a conditional block
-		let condDepth = 0;
+		// Track brace depth inside conditional blocks
+		let condBraceDepth = 0; // > 0 means we're inside a conditional's body
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
@@ -36,13 +36,20 @@ export function runReact(cwd: string, stack: StackInfo): CheckResult {
 			// Skip comments
 			if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
 
-			// Track conditional blocks
-			if (/\b(if|else|switch)\s*\(/.test(trimmed)) condDepth++;
-			if (condDepth > 0 && trimmed.includes("{")) condDepth++;
-			if (condDepth > 0 && trimmed.includes("}")) condDepth--;
+			// Count braces on this line
+			const opens = (trimmed.match(/\{/g) || []).length;
+			const closes = (trimmed.match(/\}/g) || []).length;
+
+			// Enter conditional: set depth to 1 on the opening brace
+			if (/\b(if|else|switch)\s*[\s(]/.test(trimmed) && opens > 0) {
+				condBraceDepth = 1;
+			} else if (condBraceDepth > 0) {
+				condBraceDepth += opens - closes;
+				if (condBraceDepth < 0) condBraceDepth = 0;
+			}
 
 			// 1. Hooks called inside conditionals
-			if (condDepth > 0 && /\buse[A-Z]\w*\s*\(/.test(trimmed) && !/\/\//.test(trimmed.split("use")[0]!)) {
+			if (condBraceDepth > 0 && /\buse[A-Z]\w*\s*\(/.test(trimmed) && !/\/\//.test(trimmed.split("use")[0]!)) {
 				conditionalHooks++;
 				issues.push({ severity: "error", message: "Hook called inside conditional — violates Rules of Hooks", file: f.path, line: i + 1, rule: "conditional-hook" });
 			}

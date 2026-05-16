@@ -8,14 +8,14 @@ import { gradeFromScore } from "../types.js";
 interface UnsafePattern {
 	name: string;
 	pattern: RegExp;
-	severity: "error" | "warning";
+	severity: "error" | "warning" | "info";
 	weight: number; // score penalty per occurrence
 }
 
 const PATTERNS: UnsafePattern[] = [
 	{ name: "as any", pattern: /\bas any\b/g, severity: "warning", weight: 2 },
 	{ name: ": any", pattern: /:\s*any\b/g, severity: "warning", weight: 1 },
-	{ name: "non-null assertion (!.)", pattern: /\w+!\./g, severity: "info" as any, weight: 0.5 },
+	{ name: "non-null assertion (!.)", pattern: /\w+!\./g, severity: "info", weight: 0.5 },
 	{ name: "@ts-ignore", pattern: /@ts-ignore/g, severity: "error", weight: 5 },
 	{ name: "@ts-expect-error", pattern: /@ts-expect-error/g, severity: "warning", weight: 2 },
 	{ name: "@ts-nocheck", pattern: /@ts-nocheck/g, severity: "error", weight: 10 },

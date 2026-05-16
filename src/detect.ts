@@ -16,8 +16,13 @@ export function detectStack(cwd: string): StackInfo {
 	};
 
 	const pkg = read("package.json");
-	const deps = pkg ? JSON.parse(pkg) : {};
-	const allDeps = { ...deps.dependencies, ...deps.devDependencies };
+	let allDeps: Record<string, string> = {};
+	try {
+		const deps = pkg ? JSON.parse(pkg) : {};
+		allDeps = { ...deps.dependencies, ...deps.devDependencies };
+	} catch {
+		// invalid package.json
+	}
 
 	const language =
 		has("tsconfig.json") || has("tsconfig.app.json") || allDeps.typescript
