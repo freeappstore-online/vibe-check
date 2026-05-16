@@ -146,6 +146,14 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 .hm-count{color:var(--muted);font-size:0.65rem;flex-shrink:0;min-width:50px}
 .hm-checks{font-size:0.58rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
+/* Premium / coming-soon cards */
+.pro-card{background:linear-gradient(135deg,#0f0f1a 0%,#13131f 100%);border:1px solid #2a2a3d;border-radius:0.75rem;padding:1.5rem;position:relative;overflow:hidden}
+.pro-card::before{content:"";position:absolute;top:-50%;right:-50%;width:200%;height:200%;background:radial-gradient(circle,#6366f108 0%,transparent 70%);pointer-events:none}
+.pro-badge{display:inline-block;background:linear-gradient(135deg,#6366f1,#818cf8);color:#fff;font-size:0.6rem;font-weight:800;padding:0.15rem 0.5rem;border-radius:9999px;letter-spacing:0.06em;margin-bottom:0.6rem}
+.pro-desc{color:var(--muted);font-size:0.78rem;line-height:1.6;margin-bottom:0.8rem}
+.pro-cta{color:#6366f1;font-size:0.72rem;font-weight:600;margin-top:1rem}
+.sn-pro{opacity:0.7}
+
 .footer{text-align:center;color:var(--muted);font-size:0.58rem;margin-top:2rem;padding:0.8rem 0;border-top:1px solid var(--border)}
 .footer a{color:var(--muted)}
 .flink{color:var(--accent);text-decoration:none;font-family:"SF Mono",monospace}.flink:hover{text-decoration:underline}

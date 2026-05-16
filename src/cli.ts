@@ -16,6 +16,8 @@ import { runErrorHandling } from "./runners/error-handling.js";
 import { runLint } from "./runners/lint.js";
 import { runReact } from "./runners/react.js";
 import { runAccessibility } from "./runners/accessibility.js";
+import { runDocCoherence } from "./runners/doc-coherence.js";
+import { runCodeCoherence } from "./runners/code-coherence.js";
 import { runSecrets } from "./runners/secrets.js";
 import { runSecurity } from "./runners/security.js";
 import { runStandards } from "./runners/standards.js";
@@ -93,6 +95,9 @@ async function main() {
 		// LLM Readiness
 		{ name: "confusion", fn: () => runConfusion(cwd) },
 		{ name: "context", fn: () => runContext(cwd) },
+		// AI Analysis (premium)
+		{ name: "doc-coherence", fn: () => runDocCoherence(cwd) },
+		{ name: "code-coherence", fn: () => runCodeCoherence(cwd) },
 	];
 
 	for (const runner of runners) {
@@ -100,10 +105,12 @@ async function main() {
 		const result = runner.fn();
 		checks.push(result);
 		if (!jsonOnly) {
-			const skipped = (result.details as Record<string, unknown>).skipped;
-			const c = skipped ? "\x1b[2m" : color(result.grade);
-			const label = skipped ? "skip" : result.grade;
-			const scoreStr = skipped ? "—" : `${result.score}/100`;
+			const det = result.details as Record<string, unknown>;
+			const skipped = det.skipped;
+			const premium = det.comingSoon;
+			const c = premium ? "\x1b[2m" : skipped ? "\x1b[2m" : color(result.grade);
+			const label = premium ? "soon" : skipped ? "skip" : result.grade;
+			const scoreStr = premium ? "PRO" : skipped ? "—" : `${result.score}/100`;
 			const issueStr = result.issues.length > 0 ? `  \x1b[2m${result.issues.length} issues\x1b[0m` : "";
 			console.log(`${c}${label.padEnd(5)}${scoreStr}\x1b[0m  \x1b[2m${result.duration}ms\x1b[0m${issueStr}`);
 		}

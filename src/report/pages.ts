@@ -138,7 +138,10 @@ export function categoryPages(catScores: CatScore[], fl: FL): string {
 		const subNav = cs.checks
 			.map((c, i) => {
 				const sk = (c.details as any).skipped;
-				return `<a class="sn${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}" onclick="sub(this,'${cs.id}')">${e(c.name)} <span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "\u2014" : c.grade}</span></a>`;
+				const premium = (c.details as any).comingSoon;
+				const badge = premium ? "PRO" : sk ? "\u2014" : c.grade;
+				const clr = premium ? "#6366f1" : sk ? "#555" : gc(c.grade);
+				return `<a class="sn${i === 0 ? " active" : ""}${premium ? " sn-pro" : ""}" data-sub="${cs.id}-${c.name}" onclick="sub(this,'${cs.id}')">${e(c.name)} <span style="color:${clr}">${badge}</span></a>`;
 			})
 			.join("");
 
@@ -146,6 +149,7 @@ export function categoryPages(catScores: CatScore[], fl: FL): string {
 			.map((c, i) => {
 				const meta = getCheckMeta(c.name);
 				const sk = (c.details as any).skipped;
+				const premium = (c.details as any).comingSoon;
 				const detailsFiltered = Object.entries(c.details)
 					.filter(([k]) => k !== "skipped" && k !== "reason" && k !== "graph")
 					.map(([k, v]) => {
@@ -184,6 +188,27 @@ export function categoryPages(catScores: CatScore[], fl: FL): string {
 					}
 					issuesHtml += `</div>`;
 				}
+
+				// Premium "coming soon" check
+			if (premium) {
+				const det = c.details as Record<string, unknown>;
+				const desc = (det.description as string) || meta.description;
+				const detailKvs = Object.entries(det)
+					.filter(([k]) => !["premium", "comingSoon", "reason", "description"].includes(k))
+					.map(([k, v]) => `<div class="kv"><span class="k">${e(k)}</span><span class="v">${e(Array.isArray(v) ? v.join(", ") : String(v))}</span></div>`)
+					.join("");
+
+				return `<div class="sp${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}">
+<div class="pro-card">
+<div class="pro-badge">PRO</div>
+<h3 style="margin-bottom:0.5rem;color:var(--text)">${e(meta.label)}</h3>
+<p class="pro-desc">${e(desc)}</p>
+${meta.risk ? `<div class="info-panel"><div class="ip-row"><span class="ip-label">Risk</span><span>${e(meta.risk)}</span></div></div>` : ""}
+${detailKvs ? `<div class="kvs" style="margin-top:0.8rem">${detailKvs}</div>` : ""}
+<p class="pro-cta">Coming soon with VibeCode QA Pro</p>
+</div>
+</div>`;
+			}
 
 				return `<div class="sp${i === 0 ? " active" : ""}" data-sub="${cs.id}-${c.name}">
 <div class="ch-head"><span class="ch-g" style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "\u2014" : c.grade}</span><div><b>${e(meta.label)}</b><span class="ch-s">${sk ? "skipped" : `${c.score}/100`} \u00b7 weight ${meta.weight}% \u00b7 ${c.duration}ms \u00b7 ${c.issues.length} issues</span></div><span class="pri" style="color:${pc(meta.priority)}">${meta.priority}</span></div>

@@ -24,12 +24,13 @@ const GROUPS: { id: string; label: string; checks: string[] }[] = [
 	{ id: "arch", label: "Architecture", checks: ["architecture"] },
 	{ id: "security", label: "Security", checks: ["secrets", "security", "dependencies"] },
 	{ id: "llm", label: "AI Readiness", checks: ["confusion", "context"] },
+	{ id: "ai", label: "AI Analysis", checks: ["doc-coherence", "code-coherence"] },
 ];
 
 export function generateHTML(report: VibeReport, historyDir?: string): string {
 	const allChecks = report.checks;
 	const checkMap = new Map(allChecks.map((c) => [c.name, c]));
-	const active = allChecks.filter((c) => !(c.details as any).skipped);
+	const active = allChecks.filter((c) => !(c.details as any).skipped && !(c.details as any).comingSoon);
 	const ru = report.meta.repoUrl;
 	const br = report.meta.branch;
 	const fl = (path: string, line?: number) => fileLink(path, line, ru, br);
@@ -80,11 +81,15 @@ export function generateHTML(report: VibeReport, historyDir?: string): string {
 	// ── Sidebar ──
 	const sidebarDims = catScores
 		.map((cs) => {
-			const clr = gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
-			return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} <span style="color:${clr}">${cs.avg}</span></a>${cs.checks
+			const isPremiumGroup = cs.checks.every((c) => (c.details as any).comingSoon);
+			const clr = isPremiumGroup ? "#6366f1" : gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
+			const scoreLabel = isPremiumGroup ? `<span class="pro-badge" style="font-size:0.5rem;padding:0.08rem 0.35rem">PRO</span>` : `<span style="color:${clr}">${cs.avg}</span>`;
+			return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} ${scoreLabel}</a>${cs.checks
 				.map((c) => {
 					const sk = (c.details as any).skipped;
+					const premium = (c.details as any).comingSoon;
 					const meta = getCheckMeta(c.name);
+					if (premium) return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:#6366f1">PRO</span> ${e(meta.label)}</a>`;
 					return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "\u2014" : c.grade}</span> ${e(meta.label)}</a>`;
 				})
 				.join("")}</div>`;

@@ -12,6 +12,7 @@ export interface CheckMeta {
 	description: string;
 	risk: string;
 	recommendation: string;
+	premium?: boolean;
 }
 
 export const CHECK_META: Record<string, CheckMeta> = {
@@ -228,6 +229,32 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		risk: "1 in 4 adults has a disability (CDC). Missing alt text makes images invisible to screen readers. Click-only divs exclude keyboard users. Unlabeled inputs are unusable with assistive technology. Missing lang attribute breaks screen reader pronunciation.",
 		recommendation:
 			"Add alt text to all images (use alt=\"\" for decorative). Use <button> for clickable elements, not <div onClick>. Label all form controls with <label>, aria-label, or aria-labelledby. Set lang on <html>.",
+	},
+	"doc-coherence": {
+		name: "doc-coherence",
+		label: "Doc Coherence",
+		category: "AI Analysis",
+		priority: "high",
+		weight: 0,
+		description:
+			"LLM-powered analysis that detects contradictions between documentation and code. Finds stale README claims, incorrect JSDoc parameters, outdated CHANGELOG references, and comments that no longer match the implementation.",
+		risk: "Stale documentation is worse than no documentation — it actively misleads developers and LLMs. When README says 'supports X' but the feature was removed, new contributors waste time. When JSDoc says a param is required but code treats it as optional, callers crash.",
+		recommendation:
+			"Enable doc-coherence with a VibeCode QA Pro subscription. The LLM scans all documentation against the actual code and surfaces contradictions with specific file references.",
+		premium: true,
+	},
+	"code-coherence": {
+		name: "code-coherence",
+		label: "Code Coherence",
+		category: "AI Analysis",
+		priority: "high",
+		weight: 0,
+		description:
+			"LLM-powered analysis that detects internal contradictions within the codebase itself. Finds inconsistent validation logic, conflicting defaults across modules, naming convention drift, dead config flags, and behavioral mismatches.",
+		risk: "Incoherent codebases are the #1 source of 'it works on my machine' bugs. When module A validates email with regex and module B uses a different regex, some emails pass one and fail the other. When timeouts differ across modules, race conditions emerge under load.",
+		recommendation:
+			"Enable code-coherence with a VibeCode QA Pro subscription. The LLM analyzes cross-module patterns and surfaces behavioral contradictions that static analysis cannot detect.",
+		premium: true,
 	},
 };
 

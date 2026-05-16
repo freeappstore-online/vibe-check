@@ -272,7 +272,22 @@ export function generateArchSVG(details: Record<string, unknown>): string {
 
 	const nodes = Object.entries(graph);
 	const nodeCount = nodes.length;
-	if (nodeCount > 40) return ""; // too many nodes to render meaningfully
+	if (nodeCount > 50) return `<div style="color:#6b7280;font-size:0.75rem">${nodeCount} modules — too many to render. Consider splitting into smaller packages.</div>`;
+
+	// Detect cycles for highlighting
+	const cycleEdges = new Set<string>();
+	const cycles = details.circularDeps as number;
+	if (cycles > 0) {
+		// Mark edges that participate in cycles (simplified: mutual imports)
+		for (const [path, info] of nodes) {
+			for (const imp of info.imports) {
+				if (graph[imp]?.imports.includes(path)) {
+					cycleEdges.add(`${path}->${imp}`);
+					cycleEdges.add(`${imp}->${path}`);
+				}
+			}
+		}
+	}
 
 	// Group by directory
 	const dirs = new Map<string, string[]>();
@@ -283,61 +298,128 @@ export function generateArchSVG(details: Record<string, unknown>): string {
 		dirs.set(dir, arr);
 	}
 
-	const W = 800,
-		padding = 40;
+	const W = 800, padding = 50;
 	const dirEntries = [...dirs.entries()];
 	const dirWidth = (W - padding * 2) / Math.max(dirEntries.length, 1);
+	const nodeSpacing = 38;
 
 	// Position nodes
 	const positions = new Map<string, { x: number; y: number }>();
 	let dirIdx = 0;
-	for (const [_d, paths] of dirEntries) {
+	for (const [, paths] of dirEntries) {
 		const x0 = padding + dirIdx * dirWidth + dirWidth / 2;
 		for (let i = 0; i < paths.length; i++) {
-			const y = padding + 50 + i * 35;
-			positions.set(paths[i], { x: x0, y });
+			const y = padding + 55 + i * nodeSpacing;
+			positions.set(paths[i]!, { x: x0, y });
 		}
 		dirIdx++;
 	}
 
-	const H = Math.max(300, padding * 2 + 50 + Math.max(...[...dirs.values()].map((p) => p.length)) * 35 + 20);
+	const maxGroupLen = Math.max(...[...dirs.values()].map((p) => p.length));
+	const H = Math.max(320, padding * 2 + 55 + maxGroupLen * nodeSpacing + 50);
 
-	// Draw edges
-	let edges = "";
+	// ── Defs: arrowhead marker, glow filter ──
+	const defs = `<defs>
+<marker id="ah" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#818cf850"/></marker>
+<marker id="ah-cross" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#ef444460"/></marker>
+<marker id="ah-cycle" viewBox="0 0 10 7" refX="10" refY="3.5" markerWidth="8" markerHeight="6" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/></marker>
+</defs>`;
+
+	// ── Background ──
+	const bg = `<rect width="${W}" height="${H}" rx="8" fill="#09090b"/>`;
+
+	// ── Draw edges (curved bezier paths with arrows) ──
+	let edgesSvg = "";
 	for (const [path, info] of nodes) {
 		const from = positions.get(path);
 		if (!from) continue;
 		for (const imp of info.imports) {
 			const to = positions.get(imp);
 			if (!to) continue;
-			const color = info.dir !== graph[imp]?.dir ? "#ef444440" : "#818cf825";
-			edges += `<line x1="${from.x}" y1="${from.y}" x2="${to.x}" y2="${to.y}" stroke="${color}" stroke-width="1.5"/>`;
+
+			const isCycle = cycleEdges.has(`${path}->${imp}`);
+			const isCross = info.dir !== graph[imp]?.dir;
+			const color = isCycle ? "#f9731680" : isCross ? "#ef444435" : "#818cf820";
+			const marker = isCycle ? "url(#ah-cycle)" : isCross ? "url(#ah-cross)" : "url(#ah)";
+			const width = isCycle ? "2" : "1.2";
+			const dash = isCycle ? ' stroke-dasharray="5,3"' : "";
+
+			// Bezier curve: offset control point sideways to avoid straight-line overlap
+			const dx = to.x - from.x;
+			const dy = to.y - from.y;
+			const cx1 = from.x + dx * 0.3 + (dy === 0 ? 0 : Math.sign(dx) * 15);
+			const cy1 = from.y + dy * 0.3;
+			const cx2 = to.x - dx * 0.3 + (dy === 0 ? 0 : Math.sign(dx) * 15);
+			const cy2 = to.y - dy * 0.3;
+
+			edgesSvg += `<path d="M${from.x},${from.y} C${cx1},${cy1} ${cx2},${cy2} ${to.x},${to.y}" fill="none" stroke="${color}" stroke-width="${width}" marker-end="${marker}"${dash}/>`;
 		}
 	}
 
-	// Draw directory groups
-	let groups = "";
+	// ── Draw directory groups ──
+	let groupsSvg = "";
 	dirIdx = 0;
 	for (const [dName, paths] of dirEntries) {
 		const x = padding + dirIdx * dirWidth;
-		const h = paths.length * 35 + 20;
-		groups += `<rect x="${x + 5}" y="${padding + 30}" width="${dirWidth - 10}" height="${h}" rx="8" fill="#14141a" stroke="#23232a"/>`;
-		groups += `<text x="${x + dirWidth / 2}" y="${padding + 22}" text-anchor="middle" fill="#6b7280" font-size="10" font-weight="600">${dName === "." ? "root" : dName.split("/").pop()}</text>`;
+		const h = paths.length * nodeSpacing + 24;
+		groupsSvg += `<rect x="${x + 5}" y="${padding + 32}" width="${dirWidth - 10}" height="${h}" rx="8" fill="#0f0f14" stroke="#1e1e24"/>`;
+		const label = dName === "." ? "root" : dName.split("/").pop();
+		groupsSvg += `<text x="${x + dirWidth / 2}" y="${padding + 24}" text-anchor="middle" fill="#555" font-size="10" font-weight="700" letter-spacing="0.03em">${label}</text>`;
 		dirIdx++;
 	}
 
-	// Draw nodes
+	// ── Draw nodes ──
 	let nodesSvg = "";
+	const godThreshold = Math.max(3, Math.floor(nodeCount * 0.5));
 	for (const [path] of nodes) {
 		const pos = positions.get(path);
 		if (!pos) continue;
 		const name = basename(path, extname(path));
-		const info = graph[path];
+		const info = graph[path]!;
 		const fanIn = info.importedBy.length;
-		const size = Math.min(8, 3 + fanIn);
-		nodesSvg += `<circle cx="${pos.x}" cy="${pos.y}" r="${size}" fill="#818cf8"/>`;
-		nodesSvg += `<text x="${pos.x + size + 4}" y="${pos.y + 3}" fill="#e5e5e5" font-size="9">${name}</text>`;
+		const fanOut = info.imports.length;
+
+		// Node color based on health
+		const isGod = fanIn >= godThreshold;
+		const isOrphan = fanIn === 0 && !["index", "main", "cli", "App"].includes(name);
+		const isHighFanOut = fanOut > 10;
+		const isInCycle = [...cycleEdges].some((e) => e.startsWith(path + "->") || e.endsWith("->" + path));
+
+		let nodeColor = "#818cf8"; // default: accent
+		if (isInCycle) nodeColor = "#f97316"; // orange for cycle participant
+		else if (isGod) nodeColor = "#ef4444"; // red for god module
+		else if (isOrphan) nodeColor = "#555"; // dim for orphan
+		else if (isHighFanOut) nodeColor = "#eab308"; // yellow for high fan-out
+
+		const size = Math.min(9, 3 + Math.floor(fanIn * 0.8));
+
+		// Node circle with subtle glow for important nodes
+		if (isGod || isInCycle) {
+			nodesSvg += `<circle cx="${pos.x}" cy="${pos.y}" r="${size + 4}" fill="${nodeColor}" opacity="0.15"/>`;
+		}
+		nodesSvg += `<circle cx="${pos.x}" cy="${pos.y}" r="${size}" fill="${nodeColor}"/>`;
+
+		// Label
+		const labelColor = isOrphan ? "#555" : "#d4d4d8";
+		nodesSvg += `<text x="${pos.x + size + 5}" y="${pos.y + 3}" fill="${labelColor}" font-size="9" font-weight="${isGod ? "700" : "400"}">${name}</text>`;
+
+		// Fan-in/fan-out badge (only for notable nodes)
+		if (fanIn > 2 || fanOut > 5) {
+			nodesSvg += `<text x="${pos.x + size + 5}" y="${pos.y + 13}" fill="#555" font-size="7">${fanIn}\u2190 ${fanOut}\u2192</text>`;
+		}
 	}
 
-	return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;background:#09090b;border-radius:8px;border:1px solid #1e1e24">${groups}${edges}${nodesSvg}</svg>`;
+	// ── Legend ──
+	const legendY = H - 30;
+	const legend = `<g transform="translate(${padding}, ${legendY})" font-size="8" fill="#555">
+<circle cx="0" cy="0" r="4" fill="#818cf8"/><text x="8" y="3">module</text>
+<circle cx="60" cy="0" r="4" fill="#ef4444"/><text x="68" y="3">god module</text>
+<circle cx="140" cy="0" r="4" fill="#f97316"/><text x="148" y="3">in cycle</text>
+<circle cx="200" cy="0" r="4" fill="#eab308"/><text x="208" y="3">high fan-out</text>
+<circle cx="280" cy="0" r="4" fill="#555"/><text x="288" y="3">orphan</text>
+<line x1="330" y1="0" x2="350" y2="0" stroke="#ef444460" stroke-width="1.2"/><text x="354" y="3">cross-dir</text>
+<line x1="410" y1="0" x2="430" y2="0" stroke="#f97316" stroke-width="1.5" stroke-dasharray="5,3"/><text x="434" y="3">circular</text>
+</g>`;
+
+	return `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px">${defs}${bg}${groupsSvg}${edgesSvg}${nodesSvg}${legend}</svg>`;
 }

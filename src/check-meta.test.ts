@@ -38,7 +38,7 @@ describe("CHECK_META", () => {
 	});
 
 	it("has valid categories", () => {
-		const validCats = ["Foundations", "Quality", "Testing", "Architecture", "Security", "LLM Readiness"];
+		const validCats = ["Foundations", "Quality", "Testing", "Architecture", "Security", "LLM Readiness", "AI Analysis"];
 		for (const meta of Object.values(CHECK_META)) {
 			expect(validCats).toContain(meta.category);
 		}
