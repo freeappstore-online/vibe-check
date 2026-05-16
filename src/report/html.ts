@@ -10,7 +10,9 @@
  */
 
 import { getCheckMeta, type Priority } from "../check-meta.js";
+import { loadHistory, scoreDeltaBadge } from "../history.js";
 import { generateArchSVG } from "../runners/architecture.js";
+import { buildSparkline } from "./svg.js";
 import type { CheckResult, VibeReport } from "../types.js";
 
 function e(s: string): string {
@@ -32,14 +34,14 @@ function pc(p: Priority): string {
 
 const GROUPS: { id: string; label: string; checks: string[] }[] = [
 	{ id: "foundations", label: "Foundations", checks: ["structure", "lint", "types", "type-safety", "standards"] },
-	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "docs"] },
+	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "error-handling", "docs"] },
 	{ id: "testing", label: "Testing", checks: ["testing"] },
 	{ id: "arch", label: "Architecture", checks: ["architecture"] },
 	{ id: "security", label: "Security", checks: ["secrets", "security", "dependencies"] },
 	{ id: "llm", label: "LLM Readiness", checks: ["confusion", "context"] },
 ];
 
-export function generateHTML(report: VibeReport): string {
+export function generateHTML(report: VibeReport, historyDir?: string): string {
 	const allChecks = report.checks;
 	const checkMap = new Map(allChecks.map((c) => [c.name, c]));
 	const active = allChecks.filter((c) => !(c.details as any).skipped);
@@ -111,6 +113,44 @@ export function generateHTML(report: VibeReport): string {
 
 	const radarSvg = buildRadar(catScores.map((cs) => ({ label: cs.label, score: cs.avg })));
 
+	// ── Trend sparklines from history ──
+	let trendSection = "";
+	if (historyDir) {
+		const history = loadHistory(historyDir);
+		if (history.length >= 2) {
+			const scores = history.map((h) => h.score);
+			const badge = scoreDeltaBadge(history);
+			const badgeHtml = badge
+				? `<span class="trend-badge" style="color:${badge.delta > 0 ? "var(--pass)" : badge.delta < 0 ? "var(--fail)" : "var(--muted)"}">${e(badge.label)}</span>`
+				: "";
+
+			// Composite score sparkline
+			const mainSparkline = buildSparkline(scores, { width: 120, height: 30, color: "#818cf8" });
+
+			// Per-check mini sparklines
+			const checkNames = [...new Set(history.flatMap((h) => [...h.checkScores.keys()]))];
+			const checkSparklines = checkNames
+				.map((name) => {
+					const vals = history.map((h) => h.checkScores.get(name) ?? 0);
+					const current = vals[vals.length - 1]!;
+					const prev = vals.length >= 2 ? vals[vals.length - 2]! : current;
+					const delta = current - prev;
+					const dColor = delta > 0 ? "var(--pass)" : "var(--fail)";
+					const dSign = delta > 0 ? "+" : "";
+					const deltaStr = delta !== 0 ? `<span style="color:${dColor};font-size:0.58rem">${dSign}${delta}</span>` : "";
+					const svg = buildSparkline(vals, { width: 60, height: 20, color: "#6b7280", dotRadius: 1.5 });
+					return `<div class="ts-check"><span class="ts-name">${e(name)}</span>${svg}${deltaStr}</div>`;
+				})
+				.join("");
+
+			trendSection = `<div class="trend-section">
+<h3>Trend <span style="font-size:0.65rem;font-weight:400;color:var(--muted)">${history.length} runs</span></h3>
+<div class="ts-main"><div class="ts-spark">${mainSparkline}</div><div class="ts-info"><span class="ts-score">${report.score}</span>${badgeHtml}</div></div>
+<div class="ts-checks">${checkSparklines}</div>
+</div>`;
+		}
+	}
+
 	const overviewPage = `<div id="p-overview" class="page active">
 <div class="dash">
   <div class="hero">
@@ -120,6 +160,7 @@ export function generateHTML(report: VibeReport): string {
   <div class="radar">${radarSvg}</div>
 </div>
 <div class="cats">${catCards}</div>
+${trendSection}
 <h3>All Checks</h3>
 <div class="bars">${barChart}</div>
 <div class="stack">${Object.entries(report.meta.stack)
@@ -320,6 +361,18 @@ h3{font-size:0.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:
 .bv{width:36px;font-weight:700;font-size:0.68rem}
 .stack{display:flex;gap:0.35rem;flex-wrap:wrap}
 .stack span{background:var(--card);border:1px solid var(--border);padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.62rem;color:var(--muted)}
+
+/* Trend sparklines */
+.trend-section{background:var(--card);border:1px solid var(--border);border-radius:0.6rem;padding:1rem;margin-bottom:1.5rem}
+.trend-section h3{margin-bottom:0.6rem}
+.ts-main{display:flex;align-items:center;gap:1rem;margin-bottom:0.8rem}
+.ts-spark{flex-shrink:0}
+.ts-info{display:flex;align-items:baseline;gap:0.5rem}
+.ts-score{font-size:1.4rem;font-weight:900;color:var(--text)}
+.trend-badge{font-size:0.72rem;font-weight:600}
+.ts-checks{display:flex;flex-wrap:wrap;gap:0.5rem 1rem}
+.ts-check{display:flex;align-items:center;gap:0.3rem;font-size:0.65rem}
+.ts-name{color:var(--muted);width:70px;text-align:right;flex-shrink:0}
 
 /* Category pages */
 .cat-head{margin-bottom:0.3rem}

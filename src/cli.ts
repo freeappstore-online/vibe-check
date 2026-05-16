@@ -12,6 +12,7 @@ import { runContext } from "./runners/context.js";
 import { runDependencies } from "./runners/dependencies.js";
 import { runDocs } from "./runners/docs.js";
 import { runDuplication } from "./runners/duplication.js";
+import { runErrorHandling } from "./runners/error-handling.js";
 import { runLint } from "./runners/lint.js";
 import { runSecrets } from "./runners/secrets.js";
 import { runSecurity } from "./runners/security.js";
@@ -74,6 +75,7 @@ async function main() {
 		// Quality
 		{ name: "complexity", fn: () => runComplexity(cwd) },
 		{ name: "duplication", fn: () => runDuplication(cwd) },
+		{ name: "error-handling", fn: () => runErrorHandling(cwd) },
 		{ name: "docs", fn: () => runDocs(cwd) },
 		// Testing
 		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },
@@ -142,7 +144,7 @@ async function main() {
 	}
 
 	writeFileSync(join(outputDir, "report.json"), JSON.stringify(report, null, 2));
-	writeFileSync(join(outputDir, "report.html"), generateHTML(report));
+	writeFileSync(join(outputDir, "report.html"), generateHTML(report, historyDir));
 
 	if (jsonOnly) {
 		console.log(JSON.stringify(report));

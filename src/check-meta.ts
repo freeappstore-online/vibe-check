@@ -80,7 +80,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Complexity",
 		category: "Quality",
 		priority: "high",
-		weight: 7,
+		weight: 5,
 		description:
 			"Measures cognitive complexity of each function: how many branches (if/else/switch/for/while/ternary/&&/||) and how many lines. Functions over 60 lines or with complexity over 15 are flagged.",
 		risk: "Complex functions are the #1 source of bugs. Research shows defect density increases exponentially with cyclomatic complexity above 10 (McCabe, 1976). Complex code is also harder to review, test, and modify safely.",
@@ -98,6 +98,18 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		risk: "Duplicated code means bugs must be fixed in multiple places. Miss one copy and the bug persists. DRY (Don't Repeat Yourself) violations increase maintenance cost linearly with each copy.",
 		recommendation:
 			"Extract duplicated logic into shared functions or modules. If two files share the same pattern, create a helper. If the duplication is across repos, consider vendoring a shared module.",
+	},
+	"error-handling": {
+		name: "error-handling",
+		label: "Error Handling",
+		category: "Quality",
+		priority: "high",
+		weight: 2,
+		description:
+			"Checks for poor error handling patterns: empty catch blocks, comment-only catches, throw with string literals instead of Error objects, catch-and-rethrow without context, promise chains without .catch(), and missing React Error Boundaries.",
+		risk: "Empty catch blocks silently swallow errors, making bugs invisible. Throwing strings instead of Error objects loses stack traces. Missing Error Boundaries in React cause the entire app to crash on any runtime error. Unhandled promise rejections can cause silent failures or process crashes.",
+		recommendation:
+			"Always handle or log errors in catch blocks. Use throw new Error(...) for proper stack traces. Add Error Boundaries at route or feature level in React apps. Chain .catch() on promise chains or use try/catch with async/await.",
 	},
 	docs: {
 		name: "docs",

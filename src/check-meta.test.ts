@@ -10,6 +10,7 @@ describe("CHECK_META", () => {
 		"standards",
 		"complexity",
 		"duplication",
+		"error-handling",
 		"docs",
 		"testing",
 		"secrets",
