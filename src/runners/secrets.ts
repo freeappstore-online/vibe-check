@@ -1,7 +1,6 @@
 /** Secret detection — scans for hardcoded keys/tokens in source files. */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { collectSourceFiles } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -40,27 +39,21 @@ export function runSecrets(cwd: string): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	const files: string[] = [];
-	collectFiles(cwd, files);
+	const srcFiles = collectSourceFiles(cwd, { includeTests: false, extraExts: true, roots: ["."] });
 
-	for (const file of files) {
-		const content = readFileSync(file, "utf-8");
-		const relPath = file.replace(`${cwd}/`, "");
-		const lines = content.split("\n");
+	for (const file of srcFiles) {
+		const lines = file.content.split("\n");
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			// Skip comments
 			if (line.trim().startsWith("//") || line.trim().startsWith("*")) continue;
-			// Skip test files and mock data
-			if (relPath.includes(".test.") || relPath.includes("__mock")) continue;
 
 			for (const { name, pattern } of SECRET_PATTERNS) {
 				if (pattern.test(line)) {
 					issues.push({
 						severity: "error",
 						message: `Possible ${name}`,
-						file: relPath,
+						file: file.path,
 						line: i + 1,
 						rule: "secret-detected",
 					});
@@ -79,20 +72,4 @@ export function runSecrets(cwd: string): CheckResult {
 		issues,
 		duration: Date.now() - start,
 	};
-}
-
-function collectFiles(dir: string, out: string[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (["node_modules", "dist", ".git", ".vibe-check", "coverage", "test-results"].includes(entry)) continue;
-		const full = join(dir, entry);
-		const stat = statSync(full);
-		if (stat.isDirectory()) {
-			collectFiles(full, out);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx", ".json", ".env", ".yaml", ".yml", ".toml"].includes(ext)) {
-				out.push(full);
-			}
-		}
-	}
 }

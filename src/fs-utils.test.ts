@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { collectSourceFiles, getProductionFiles, getTestFiles, readSafe, readDeps } from "./fs-utils.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import { collectSourceFiles, getCSSFiles, getProductionFiles, getTestFiles, readDeps, readSafe, SKIP_DIRS } from "./fs-utils.js";
 
 function makeProject(files: Record<string, string>): string {
 	const dir = mkdtempSync(join(tmpdir(), "vcqa-fs-"));
@@ -27,12 +27,24 @@ describe("collectSourceFiles", () => {
 		rmSync(dir, { recursive: true });
 	});
 
-	it("marks test files correctly", () => {
+	it("excludes test files by default", () => {
 		const dir = makeProject({
 			"src/app.ts": "export const x = 1;",
 			"src/app.test.ts": "import { x } from './app'; test('x', () => {});",
 		});
 		const files = collectSourceFiles(dir);
+		expect(files).toHaveLength(1);
+		expect(files[0]!.isTest).toBe(false);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("includes test files when requested", () => {
+		const dir = makeProject({
+			"src/app.ts": "export const x = 1;",
+			"src/app.test.ts": "import { x } from './app'; test('x', () => {});",
+		});
+		const files = collectSourceFiles(dir, { includeTests: true });
+		expect(files).toHaveLength(2);
 		const testFile = files.find((f) => f.isTest);
 		expect(testFile).toBeDefined();
 		expect(testFile!.path).toContain(".test.");
@@ -85,6 +97,51 @@ describe("getTestFiles", () => {
 		expect(files).toHaveLength(1);
 		expect(files[0]!.isTest).toBe(true);
 		rmSync(dir, { recursive: true });
+	});
+});
+
+describe("getCSSFiles", () => {
+	it("finds .css files in src/", () => {
+		const dir = makeProject({
+			"src/index.css": "body { margin: 0; }",
+			"src/app.ts": "export const x = 1;",
+		});
+		const files = getCSSFiles(dir);
+		expect(files).toHaveLength(1);
+		expect(files[0]!.ext).toBe(".css");
+		rmSync(dir, { recursive: true });
+	});
+
+	it("returns empty when no CSS files", () => {
+		const dir = makeProject({ "src/app.ts": "export const x = 1;" });
+		const files = getCSSFiles(dir);
+		expect(files).toHaveLength(0);
+		rmSync(dir, { recursive: true });
+	});
+});
+
+describe("collectSourceFiles with roots", () => {
+	it("walks custom root directories", () => {
+		const dir = makeProject({
+			"lib/util.ts": "export const x = 1;",
+			"src/app.ts": "export const y = 2;",
+		});
+		mkdirSync(join(dir, "lib"), { recursive: true });
+		writeFileSync(join(dir, "lib", "util.ts"), "export const x = 1;");
+		const files = collectSourceFiles(dir, { roots: ["lib"] });
+		expect(files.some((f) => f.path === "lib/util.ts")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+});
+
+describe("SKIP_DIRS", () => {
+	it("contains all expected directories", () => {
+		expect(SKIP_DIRS.has("node_modules")).toBe(true);
+		expect(SKIP_DIRS.has("dist")).toBe(true);
+		expect(SKIP_DIRS.has(".git")).toBe(true);
+		expect(SKIP_DIRS.has(".vibe-check")).toBe(true);
+		expect(SKIP_DIRS.has("coverage")).toBe(true);
+		expect(SKIP_DIRS.has("test-results")).toBe(true);
 	});
 });
 

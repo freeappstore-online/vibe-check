@@ -1,7 +1,8 @@
 /** Documentation check — README, JSDoc, code comments. */
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { getProductionFiles } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -13,11 +14,14 @@ export function runDocs(cwd: string): CheckResult {
 
 	// Check README
 	const readmePath = join(cwd, "README.md");
-	if (!existsSync(readmePath)) {
+	const readmeExists = existsSync(readmePath);
+	const readme = readmeExists ? readFileSync(readmePath, "utf-8") : "";
+	const readmeLines = readmeExists ? readme.split("\n").length : 0;
+
+	if (!readmeExists) {
 		issues.push({ severity: "error", message: "No README.md — project has no documentation", rule: "no-readme" });
 	} else {
-		const readme = readFileSync(readmePath, "utf-8");
-		const lines = readme.split("\n").length;
+		const lines = readmeLines;
 		if (lines < 5) {
 			issues.push({ severity: "warning", message: `README.md is only ${lines} lines — minimal documentation`, rule: "short-readme" });
 			readmeScore = 30;
@@ -34,23 +38,13 @@ export function runDocs(cwd: string): CheckResult {
 		if (!hasDescription) issues.push({ severity: "warning", message: "README has very little content", rule: "readme-sparse" });
 	}
 
-	// Check exported function documentation
-	const files: string[] = [];
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			collectFiles(join(cwd, dir), files);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
+	const srcFiles = getProductionFiles(cwd).filter((f) => f.ext === ".ts" || f.ext === ".tsx");
 
 	let totalExports = 0;
 	let documentedExports = 0;
 
-	for (const file of files) {
-		const content = readFileSync(file, "utf-8");
-		const lines = content.split("\n");
+	for (const file of srcFiles) {
+		const lines = file.content.split("\n");
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i].trim();
@@ -58,7 +52,10 @@ export function runDocs(cwd: string): CheckResult {
 				line.startsWith("export function ") ||
 				line.startsWith("export async function ") ||
 				line.startsWith("export class ") ||
-				line.startsWith("export interface ")
+				line.startsWith("export interface ") ||
+				line.startsWith("export type ") ||
+				line.startsWith("export const ") ||
+				line.startsWith("export let ")
 			) {
 				totalExports++;
 				// Check if preceded by a JSDoc or // comment
@@ -91,7 +88,7 @@ export function runDocs(cwd: string): CheckResult {
 		score,
 		grade: gradeFromScore(score),
 		details: {
-			readmeLines: existsSync(readmePath) ? readFileSync(readmePath, "utf-8").split("\n").length : 0,
+			readmeLines,
 			totalExports,
 			documentedExports,
 			documentedPct: totalExports > 0 ? `${Math.round((documentedExports / totalExports) * 100)}%` : "n/a",
@@ -99,19 +96,4 @@ export function runDocs(cwd: string): CheckResult {
 		issues,
 		duration: Date.now() - start,
 	};
-}
-
-function collectFiles(dir: string, out: string[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist") continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			collectFiles(full, out);
-		} else {
-			const ext = extname(entry);
-			if ((ext === ".ts" || ext === ".tsx") && !entry.includes(".test.") && !entry.includes(".spec.")) {
-				out.push(full);
-			}
-		}
-	}
 }

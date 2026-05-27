@@ -1,68 +1,72 @@
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runSecrets } from "./secrets.js";
 
-const TMP = join(import.meta.dirname!, "__test_secrets__");
-
-function setup(files: Record<string, string>) {
-	rmSync(TMP, { recursive: true, force: true });
-	mkdirSync(join(TMP, "src"), { recursive: true });
-	for (const [path, content] of Object.entries(files)) {
-		const full = join(TMP, path);
+function makeProject(files: Record<string, string>): string {
+	const dir = mkdtempSync(join(tmpdir(), "vcqa-sec-"));
+	writeFileSync(join(dir, "package.json"), "{}");
+	mkdirSync(join(dir, "src"), { recursive: true });
+	for (const [name, content] of Object.entries(files)) {
+		const full = join(dir, name.startsWith("src/") ? name : `src/${name}`);
 		mkdirSync(join(full, ".."), { recursive: true });
 		writeFileSync(full, content);
 	}
-}
-
-function cleanup() {
-	rmSync(TMP, { recursive: true, force: true });
+	return dir;
 }
 
 describe("runSecrets", () => {
 	it("gives A for clean code", () => {
-		setup({ "src/clean.ts": 'const API_URL = "https://api.example.com";\nexport const config = { url: API_URL };' });
-		const result = runSecrets(TMP);
+		const dir = makeProject({ "clean.ts": 'const API_URL = "https://api.example.com";\nexport const config = { url: API_URL };' });
+		const result = runSecrets(dir);
 		expect(result.grade).toBe("A");
 		expect(result.score).toBe(100);
-		cleanup();
+		rmSync(dir, { recursive: true });
 	});
 
 	it("detects GitHub PAT", () => {
-		setup({ "src/bad.ts": 'const token = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij";' });
-		const result = runSecrets(TMP);
+		const dir = makeProject({ "bad.ts": 'const token = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij";' });
+		const result = runSecrets(dir);
 		expect(result.issues.length).toBeGreaterThan(0);
 		expect(result.issues[0].message).toContain("GitHub");
 		expect(result.score).toBeLessThan(100);
-		cleanup();
+		rmSync(dir, { recursive: true });
 	});
 
 	it("detects AWS access key", () => {
-		setup({ "src/aws.ts": 'const key = "AKIAIOSFODNN7EXAMPLE";' });
-		const result = runSecrets(TMP);
+		const dir = makeProject({ "aws.ts": 'const key = "AKIAIOSFODNN7EXAMPLE";' });
+		const result = runSecrets(dir);
 		expect(result.issues.some((i) => i.message.includes("AWS"))).toBe(true);
-		cleanup();
+		rmSync(dir, { recursive: true });
 	});
 
 	it("detects private key", () => {
-		setup({ "src/key.ts": 'const pk = "-----BEGIN RSA PRIVATE KEY-----\\nMII...";' });
-		const result = runSecrets(TMP);
+		const dir = makeProject({ "key.ts": 'const pk = "-----BEGIN RSA PRIVATE KEY-----\\nMII...";' });
+		const result = runSecrets(dir);
 		expect(result.issues.some((i) => i.message.includes("Private Key"))).toBe(true);
-		cleanup();
+		rmSync(dir, { recursive: true });
 	});
 
 	it("ignores test files", () => {
-		setup({ "src/auth.test.ts": 'const token = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij";' });
-		const result = runSecrets(TMP);
+		const dir = makeProject({ "src/auth.test.ts": 'const token = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij";' });
+		const result = runSecrets(dir);
 		expect(result.issues).toHaveLength(0);
-		cleanup();
+		rmSync(dir, { recursive: true });
+	});
+
+	it("scans non-code files (json, yaml, env extension)", () => {
+		const dir = makeProject({ "config.json": '{ "token": "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij" }' });
+		const result = runSecrets(dir);
+		expect(result.issues.some((i) => i.message.includes("GitHub"))).toBe(true);
+		rmSync(dir, { recursive: true });
 	});
 
 	it("gives A for empty project", () => {
-		setup({});
-		// No src files to scan
-		const result = runSecrets(TMP);
+		const dir = mkdtempSync(join(tmpdir(), "vcqa-sec-"));
+		writeFileSync(join(dir, "package.json"), "{}");
+		const result = runSecrets(dir);
 		expect(result.score).toBe(100);
-		cleanup();
+		rmSync(dir, { recursive: true });
 	});
 });

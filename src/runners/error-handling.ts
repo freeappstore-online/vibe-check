@@ -1,9 +1,8 @@
 /** Error handling check — detects poor error handling patterns. */
 
-
+import { getProductionFiles } from "../fs-utils.js";
 import type { CheckResult, Issue, StackInfo } from "../types.js";
 import { gradeFromScore } from "../types.js";
-import { getProductionFiles } from "../fs-utils.js";
 
 export function runErrorHandling(cwd: string, stack: StackInfo): CheckResult {
 	const start = Date.now();
@@ -11,7 +10,14 @@ export function runErrorHandling(cwd: string, stack: StackInfo): CheckResult {
 	const files = getProductionFiles(cwd);
 
 	if (files.length === 0) {
-		return { name: "error-handling", score: 100, grade: "A", details: { skipped: true, reason: "no source files" }, issues: [], duration: Date.now() - start };
+		return {
+			name: "error-handling",
+			score: 100,
+			grade: "A",
+			details: { skipped: true, reason: "no source files" },
+			issues: [],
+			duration: Date.now() - start,
+		};
 	}
 
 	let emptyCatch = 0;
@@ -22,14 +28,27 @@ export function runErrorHandling(cwd: string, stack: StackInfo): CheckResult {
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i].trim();
 
-			if (/catch\s*\([^)]*\)\s*\{\s*\}/.test(line) || /catch\s*\{\s*\}/.test(line)) {
+			// Empty catch: single-line or multi-line with only whitespace between braces
+			if (/catch\s*(?:\([^)]*\))?\s*\{\s*\}/.test(line)) {
 				emptyCatch++;
 				issues.push({ severity: "error", message: "Empty catch block", file: f.path, line: i + 1, rule: "empty-catch" });
+			} else if (/catch\s*(?:\([^)]*\))?\s*\{\s*$/.test(line)) {
+				const nextLine = i + 1 < lines.length ? lines[i + 1].trim() : "";
+				if (nextLine === "}" || nextLine === "} catch" || /^\}\s*(catch|finally)/.test(nextLine)) {
+					emptyCatch++;
+					issues.push({ severity: "error", message: "Empty catch block", file: f.path, line: i + 1, rule: "empty-catch" });
+				}
 			}
 
 			if (/\bthrow\s+["'`]/.test(line)) {
 				throwString++;
-				issues.push({ severity: "warning", message: "throw string literal — use throw new Error()", file: f.path, line: i + 1, rule: "throw-string" });
+				issues.push({
+					severity: "warning",
+					message: "throw string literal — use throw new Error()",
+					file: f.path,
+					line: i + 1,
+					rule: "throw-string",
+				});
 			}
 		}
 	}
@@ -47,7 +66,10 @@ export function runErrorHandling(cwd: string, stack: StackInfo): CheckResult {
 		}
 	}
 
-	const score = Math.max(0, Math.min(100, 100 - emptyCatch * 5 - throwString * 2 - (stack.framework === "react" && !hasErrorBoundary ? 3 : 0)));
+	const score = Math.max(
+		0,
+		Math.min(100, 100 - emptyCatch * 5 - throwString * 2 - (stack.framework === "react" && !hasErrorBoundary ? 3 : 0)),
+	);
 
 	return {
 		name: "error-handling",

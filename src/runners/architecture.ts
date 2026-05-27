@@ -272,7 +272,8 @@ export function generateArchSVG(details: Record<string, unknown>): string {
 
 	const nodes = Object.entries(graph);
 	const nodeCount = nodes.length;
-	if (nodeCount > 50) return `<div style="color:#6b7280;font-size:0.75rem">${nodeCount} modules — too many to render. Consider splitting into smaller packages.</div>`;
+	if (nodeCount > 50)
+		return `<div style="color:#6b7280;font-size:0.75rem">${nodeCount} modules — too many to render. Consider splitting into smaller packages.</div>`;
 
 	// Detect cycles for highlighting
 	const cycleEdges = new Set<string>();
@@ -298,7 +299,8 @@ export function generateArchSVG(details: Record<string, unknown>): string {
 		dirs.set(dir, arr);
 	}
 
-	const W = 800, padding = 50;
+	const W = 800,
+		padding = 50;
 	const dirEntries = [...dirs.entries()];
 	const dirWidth = (W - padding * 2) / Math.max(dirEntries.length, 1);
 	const nodeSpacing = 38;
@@ -386,9 +388,12 @@ export function generateArchSVG(details: Record<string, unknown>): string {
 		const isInCycle = [...cycleEdges].some((e) => e.startsWith(path + "->") || e.endsWith("->" + path));
 
 		let nodeColor = "#818cf8"; // default: accent
-		if (isInCycle) nodeColor = "#f97316"; // orange for cycle participant
-		else if (isGod) nodeColor = "#ef4444"; // red for god module
-		else if (isOrphan) nodeColor = "#555"; // dim for orphan
+		if (isInCycle)
+			nodeColor = "#f97316"; // orange for cycle participant
+		else if (isGod)
+			nodeColor = "#ef4444"; // red for god module
+		else if (isOrphan)
+			nodeColor = "#555"; // dim for orphan
 		else if (isHighFanOut) nodeColor = "#eab308"; // yellow for high fan-out
 
 		const size = Math.min(9, 3 + Math.floor(fanIn * 0.8));

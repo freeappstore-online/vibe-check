@@ -13,8 +13,7 @@
  *   4. Ambiguous abbreviations (auth, config, ctx, etc. outside conventional scope)
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, extname, join } from "node:path";
+import { getProductionFiles } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -105,15 +104,8 @@ export function runConfusion(cwd: string): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	const files: { path: string; base: string; content: string; exports: string[] }[] = [];
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			collectFiles(join(cwd, dir), cwd, files);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
+	const rawFiles = getProductionFiles(cwd);
+	const files = rawFiles.map((f) => ({ ...f, exports: extractExports(f.content) }));
 
 	if (files.length === 0) {
 		return {
@@ -138,11 +130,12 @@ export function runConfusion(cwd: string): CheckResult {
 			const b = files[j].base;
 
 			// Near-identical (Levenshtein ≤ 2)
-			if (a !== b && levenshtein(a, b) <= 2) {
+			const dist = a !== b ? levenshtein(a, b) : 0;
+			if (dist > 0 && dist <= 2) {
 				fileConfusability++;
 				issues.push({
 					severity: "warning",
-					message: `Similar filenames: ${a} ↔ ${b} (edit distance ${levenshtein(a, b)})`,
+					message: `Similar filenames: ${a} ↔ ${b} (edit distance ${dist})`,
 					file: files[i].path,
 					rule: "similar-filename",
 				});
@@ -282,22 +275,4 @@ function extractExports(content: string): string[] {
 		}
 	}
 	return exports;
-}
-
-function collectFiles(dir: string, cwd: string, out: { path: string; base: string; content: string; exports: string[] }[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			collectFiles(full, cwd, out);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
-				const content = readFileSync(full, "utf-8");
-				const relPath = full.replace(`${cwd}/`, "");
-				const base = basename(entry, ext);
-				out.push({ path: relPath, base, content, exports: extractExports(content) });
-			}
-		}
-	}
 }

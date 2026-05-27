@@ -1,7 +1,6 @@
 /** Code duplication detection — finds copy-pasted blocks. */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { getProductionFiles } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -20,22 +19,14 @@ export function runDuplication(cwd: string): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	const files: string[] = [];
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			collectFiles(join(cwd, dir), files);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
+	const srcFiles = getProductionFiles(cwd);
 
-	if (files.length < 2) {
+	if (srcFiles.length < 2) {
 		return {
 			name: "duplication",
 			score: 100,
 			grade: "A",
-			details: { filesScanned: files.length, duplicates: 0 },
+			details: { filesScanned: srcFiles.length, duplicates: 0 },
 			issues: [],
 			duration: Date.now() - start,
 		};
@@ -46,10 +37,8 @@ export function runDuplication(cwd: string): CheckResult {
 	const lineMap = new Map<string, { file: string; line: number }[]>();
 	let totalSourceLines = 0;
 
-	for (const file of files) {
-		const content = readFileSync(file, "utf-8");
-		const relPath = file.replace(`${cwd}/`, "");
-		const lines = content.split("\n");
+	for (const file of srcFiles) {
+		const lines = file.content.split("\n");
 		totalSourceLines += lines.length;
 
 		for (let i = 0; i <= lines.length - MIN_LINES; i++) {
@@ -63,7 +52,7 @@ export function runDuplication(cwd: string): CheckResult {
 			if (key.length < MIN_TOKENS) continue;
 
 			const locs = lineMap.get(key) || [];
-			locs.push({ file: relPath, line: i + 1 });
+			locs.push({ file: file.path, line: i + 1 });
 			lineMap.set(key, locs);
 		}
 	}
@@ -92,8 +81,16 @@ export function runDuplication(cwd: string): CheckResult {
 	for (const d of duplicates.slice(0, 20)) {
 		issues.push({
 			severity: "warning",
-			message: `${MIN_LINES}-line duplicate block`,
-			file: `${d.fileA}:${d.lineA} ↔ ${d.fileB}:${d.lineB}`,
+			message: `${MIN_LINES}-line duplicate block (also in ${d.fileB}:${d.lineB})`,
+			file: d.fileA,
+			line: d.lineA,
+			rule: "duplicate-code",
+		});
+		issues.push({
+			severity: "warning",
+			message: `${MIN_LINES}-line duplicate block (also in ${d.fileA}:${d.lineA})`,
+			file: d.fileB,
+			line: d.lineB,
 			rule: "duplicate-code",
 		});
 	}
@@ -105,23 +102,8 @@ export function runDuplication(cwd: string): CheckResult {
 		name: "duplication",
 		score,
 		grade: gradeFromScore(score),
-		details: { filesScanned: files.length, totalSourceLines, duplicateBlocks: duplicates.length, duplicationPct: `${dupPct}%` },
+		details: { filesScanned: srcFiles.length, totalSourceLines, duplicateBlocks: duplicates.length, duplicationPct: `${dupPct}%` },
 		issues,
 		duration: Date.now() - start,
 	};
-}
-
-function collectFiles(dir: string, out: string[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			collectFiles(full, out);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
-				out.push(full);
-			}
-		}
-	}
 }

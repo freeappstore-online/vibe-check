@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { runErrorHandling } from "./error-handling.js";
-import type { StackInfo } from "../types.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+import type { StackInfo } from "../types.js";
+import { runErrorHandling } from "./error-handling.js";
 
 function makeProject(files: Record<string, string>): string {
 	const dir = mkdtempSync(join(tmpdir(), "vcqa-erh-"));
@@ -15,8 +15,22 @@ function makeProject(files: Record<string, string>): string {
 	return dir;
 }
 
-const tsStack: StackInfo = { language: "typescript", framework: "none", bundler: "none", testRunner: "vitest", linter: "biome", packageManager: "pnpm" };
-const reactStack: StackInfo = { language: "typescript", framework: "react", bundler: "vite", testRunner: "vitest", linter: "biome", packageManager: "pnpm" };
+const tsStack: StackInfo = {
+	language: "typescript",
+	framework: "none",
+	bundler: "none",
+	testRunner: "vitest",
+	linter: "biome",
+	packageManager: "pnpm",
+};
+const reactStack: StackInfo = {
+	language: "typescript",
+	framework: "react",
+	bundler: "vite",
+	testRunner: "vitest",
+	linter: "biome",
+	packageManager: "pnpm",
+};
 
 describe("runErrorHandling", () => {
 	it("returns skipped when no source files", () => {
@@ -45,6 +59,31 @@ describe("runErrorHandling", () => {
 		const dir = makeProject({ "App.tsx": `export function App() { return <div>hi</div>; }` });
 		const result = runErrorHandling(dir, reactStack);
 		expect(result.issues.some((i) => i.rule === "no-error-boundary")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("detects multi-line empty catch blocks", () => {
+		const dir = makeProject({
+			"app.ts": `try {
+  riskyOperation();
+} catch (e) {
+}`,
+		});
+		const result = runErrorHandling(dir, tsStack);
+		expect(result.issues.some((i) => i.rule === "empty-catch")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("does not flag catch with body", () => {
+		const dir = makeProject({
+			"app.ts": `try {
+  riskyOperation();
+} catch (e) {
+  console.error(e);
+}`,
+		});
+		const result = runErrorHandling(dir, tsStack);
+		expect(result.issues.some((i) => i.rule === "empty-catch")).toBe(false);
 		rmSync(dir, { recursive: true });
 	});
 

@@ -1,7 +1,8 @@
 /** Security analysis — beyond secrets, checks for vulnerable code patterns. */
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { getProductionFiles } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -56,7 +57,7 @@ const PATTERNS: SecurityPattern[] = [
 	},
 	{
 		name: "child_process.exec",
-		pattern: /\bexec(?:Sync)?\s*\(/,
+		pattern: /(?:child_process|cp|proc)\.\bexec(?:Sync)?\s*\(|(?:^|[\s;])exec(?:Sync)?\s*\(\s*[`'"]/,
 		severity: "warning",
 		message: "Command injection risk: prefer execFile with argument array",
 		cwe: "CWE-78",
@@ -122,7 +123,7 @@ const PATTERNS: SecurityPattern[] = [
 	// Sensitive data
 	{
 		name: "password in URL",
-		pattern: /(?:password|secret|token|key)=[^&\s'"]+/i,
+		pattern: /[?&](?:password|secret|token|api_key)=[^&\s'"]+/i,
 		severity: "warning",
 		message: "Sensitive data in URL query string",
 		cwe: "CWE-598",
@@ -142,17 +143,9 @@ export function runSecurity(cwd: string): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	const files: string[] = [];
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			collectFiles(join(cwd, dir), files);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
+	const srcFiles = getProductionFiles(cwd);
 
-	if (files.length === 0) {
+	if (srcFiles.length === 0) {
 		return {
 			name: "security",
 			score: 100,
@@ -165,10 +158,8 @@ export function runSecurity(cwd: string): CheckResult {
 
 	const cwePrefixes = new Set<string>();
 
-	for (const file of files) {
-		const content = readFileSync(file, "utf-8");
-		const relPath = file.replace(`${cwd}/`, "");
-		const lines = content.split("\n");
+	for (const file of srcFiles) {
+		const lines = file.content.split("\n");
 
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
@@ -176,13 +167,15 @@ export function runSecurity(cwd: string): CheckResult {
 			if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
 			// Skip pattern/config definition lines (prevents false positives on own code)
 			if (/\bpattern\s*:|name:\s*["']|message:\s*["']|description:\s*["']|risk:\s*["']|recommendation:\s*["']/.test(trimmed)) continue;
+			// Skip lines that are entirely a string literal (multi-line description/risk/recommendation continuations)
+			if (/^["'`].*["'`],?$/.test(trimmed)) continue;
 
 			for (const p of PATTERNS) {
 				if (p.pattern.test(line)) {
 					issues.push({
 						severity: p.severity,
 						message: p.message,
-						file: relPath,
+						file: file.path,
 						line: i + 1,
 						rule: p.cwe || p.name,
 					});
@@ -208,10 +201,8 @@ export function runSecurity(cwd: string): CheckResult {
 		const scripts = html.match(/<script[^>]*src=["'][^"']*["'][^>]*>/g) || [];
 		for (const s of scripts) {
 			if (s.includes("integrity=")) continue;
-			if (s.includes("localhost") || s.includes("/src/")) continue; // local dev scripts
-			if (!s.includes("integrity")) {
-				issues.push({ severity: "info", message: "External script without subresource integrity (SRI)", file: h, rule: "CWE-829" });
-			}
+			if (s.includes("localhost") || s.includes("/src/")) continue;
+			issues.push({ severity: "info", message: "External script without subresource integrity (SRI)", file: h, rule: "CWE-829" });
 		}
 	}
 
@@ -223,23 +214,8 @@ export function runSecurity(cwd: string): CheckResult {
 		name: "security",
 		score,
 		grade: gradeFromScore(score),
-		details: { filesScanned: files.length, patterns: issues.length, cweCategories: cwePrefixes.size, errors, warnings },
+		details: { filesScanned: srcFiles.length, patterns: issues.length, cweCategories: cwePrefixes.size, errors, warnings },
 		issues,
 		duration: Date.now() - start,
 	};
-}
-
-function collectFiles(dir: string, out: string[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (["node_modules", "dist", ".git", ".vibe-check", "coverage", "test-results"].includes(entry)) continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			collectFiles(full, out);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
-				out.push(full);
-			}
-		}
-	}
 }

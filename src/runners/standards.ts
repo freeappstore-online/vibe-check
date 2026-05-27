@@ -1,7 +1,8 @@
 /** Code standards check — naming conventions, anti-patterns, config hygiene. */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, extname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { getProductionFiles, readDeps } from "../fs-utils.js";
 import type { CheckResult, Issue, StackInfo } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -22,7 +23,13 @@ const CODE_SMELLS: PatternCheck[] = [
 		exclude: /\/\/ ?ok|eslint-disable|biome-ignore/,
 	},
 	{ name: "var keyword", pattern: /\bvar\s+\w/, severity: "error", message: "Use const/let instead of var" },
-	{ name: "loose equality", pattern: /[^!=]==[^=]/, severity: "warning", message: "Use === instead of ==", exclude: /['"]use strict['"]/ },
+	{
+		name: "loose equality",
+		pattern: /[^!=]==[^=]/,
+		severity: "warning",
+		message: "Use === instead of ==",
+		exclude: /['"].*==.*['"]|['"]use strict['"]/,
+	},
 	{ name: "eval()", pattern: /\beval\s*\(/, severity: "error", message: "eval() is a security risk — never use it" },
 	{ name: "new Function()", pattern: /new\s+Function\s*\(/, severity: "error", message: "new Function() is equivalent to eval()" },
 	{
@@ -52,23 +59,13 @@ export function runStandards(cwd: string, stack: StackInfo): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	// Collect source files
-	const files: { path: string; content: string }[] = [];
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			collectFiles(join(cwd, dir), cwd, files);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
+	const files = getProductionFiles(cwd);
 
 	// ── File naming conventions ──
 	let namingViolations = 0;
 	for (const f of files) {
-		const name = basename(f.path);
-		const ext = extname(name);
-		const base = name.replace(ext, "");
+		const name = `${f.base}${f.ext}`;
+		const { ext, base } = f;
 
 		// React components should be PascalCase
 		if ((ext === ".tsx" || ext === ".jsx") && /^[A-Z]/.test(base)) {
@@ -99,12 +96,11 @@ export function runStandards(cwd: string, stack: StackInfo): CheckResult {
 	// ── Large files ──
 	let largeFiles = 0;
 	for (const f of files) {
-		const lines = f.content.split("\n").length;
-		if (lines > 300) {
+		if (f.lines > 300) {
 			largeFiles++;
-			issues.push({ severity: "warning", message: `${lines} lines — consider splitting (max 300)`, file: f.path, rule: "large-file" });
-		} else if (lines > 200) {
-			issues.push({ severity: "warning", message: `${lines} lines — getting large`, file: f.path, rule: "large-file" });
+			issues.push({ severity: "warning", message: `${f.lines} lines — consider splitting (max 300)`, file: f.path, rule: "large-file" });
+		} else if (f.lines > 200) {
+			issues.push({ severity: "warning", message: `${f.lines} lines — getting large`, file: f.path, rule: "large-file" });
 		}
 	}
 
@@ -117,6 +113,7 @@ export function runStandards(cwd: string, stack: StackInfo): CheckResult {
 			const trimmed = line.trim();
 			if (trimmed.startsWith("//") || trimmed.startsWith("*")) continue;
 			if (/\bpattern\s*:|name:\s*["']|message:\s*["']|description:\s*["']|risk:\s*["']|recommendation:\s*["']/.test(trimmed)) continue;
+			if (/^["'`].*["'`],?$/.test(trimmed)) continue;
 
 			for (const check of CODE_SMELLS) {
 				// Skip console.log in CLI entry points (intentional output)
@@ -181,28 +178,4 @@ export function runStandards(cwd: string, stack: StackInfo): CheckResult {
 		issues,
 		duration: Date.now() - start,
 	};
-}
-
-function collectFiles(dir: string, cwd: string, out: { path: string; content: string }[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			collectFiles(full, cwd, out);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
-				out.push({ path: full.replace(`${cwd}/`, ""), content: readFileSync(full, "utf-8") });
-			}
-		}
-	}
-}
-
-function readDeps(cwd: string): Record<string, string> {
-	try {
-		const pkg = JSON.parse(readFileSync(join(cwd, "package.json"), "utf-8"));
-		return { ...pkg.dependencies, ...pkg.devDependencies };
-	} catch {
-		return {};
-	}
 }

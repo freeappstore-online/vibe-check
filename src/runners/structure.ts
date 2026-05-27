@@ -1,7 +1,8 @@
 /** Project structure check — does the repo have standard files and conventions? */
 
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { collectSourceFiles } from "../fs-utils.js";
 import type { CheckResult, Issue, StackInfo } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -57,12 +58,9 @@ export function runStructure(cwd: string, stack: StackInfo): CheckResult {
 	}
 
 	// Count source vs test files
-	const srcFiles: string[] = [];
-	const testFiles: string[] = [];
-	collectAll(cwd, srcFiles, testFiles);
-
-	const srcCount = srcFiles.length;
-	const testCount = testFiles.length;
+	const allFiles = collectSourceFiles(cwd, { includeTests: true });
+	const srcCount = allFiles.filter((f) => !f.isTest).length;
+	const testCount = allFiles.filter((f) => f.isTest).length;
 	const testRatio = srcCount > 0 ? testCount / srcCount : 0;
 
 	if (testCount === 0 && srcCount > 0) {
@@ -98,34 +96,4 @@ export function runStructure(cwd: string, stack: StackInfo): CheckResult {
 		issues,
 		duration: Date.now() - start,
 	};
-}
-
-function collectAll(cwd: string, src: string[], test: string[]): void {
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			walk(join(cwd, dir), src, test);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
-}
-
-function walk(dir: string, src: string[], test: string[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist") continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			walk(full, src, test);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext)) {
-				if (entry.includes(".test.") || entry.includes(".spec.")) {
-					test.push(full);
-				} else {
-					src.push(full);
-				}
-			}
-		}
-	}
 }

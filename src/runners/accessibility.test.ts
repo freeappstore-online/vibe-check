@@ -1,8 +1,8 @@
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { runAccessibility } from "./accessibility.js";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
 
 function makeProject(files: Record<string, string>): string {
 	const dir = mkdtempSync(join(tmpdir(), "vcqa-a11y-"));
@@ -48,6 +48,42 @@ describe("runAccessibility", () => {
 		writeFileSync(join(dir, "index.html"), "<!DOCTYPE html><html><head></head><body></body></html>");
 		const result = runAccessibility(dir);
 		expect(result.issues.some((i) => i.rule === "html-lang")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("detects autoFocus", () => {
+		const dir = makeProject({
+			"App.tsx": `export function App() { return <input autoFocus type="text" />; }`,
+		});
+		const result = runAccessibility(dir);
+		expect(result.issues.some((i) => i.rule === "no-autofocus")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("detects positive tabIndex", () => {
+		const dir = makeProject({
+			"App.tsx": `export function App() { return <div tabIndex={5}>x</div>; }`,
+		});
+		const result = runAccessibility(dir);
+		expect(result.issues.some((i) => i.rule === "tabindex")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("detects missing form label", () => {
+		const dir = makeProject({
+			"App.tsx": `export function App() { return <input type="text" />; }`,
+		});
+		const result = runAccessibility(dir);
+		expect(result.issues.some((i) => i.rule === "form-label")).toBe(true);
+		rmSync(dir, { recursive: true });
+	});
+
+	it("accepts input with aria-label", () => {
+		const dir = makeProject({
+			"App.tsx": `export function App() { return <input type="text" aria-label="Search" />; }`,
+		});
+		const result = runAccessibility(dir);
+		expect(result.issues.some((i) => i.rule === "form-label")).toBe(false);
 		rmSync(dir, { recursive: true });
 	});
 

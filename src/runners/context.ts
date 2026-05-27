@@ -12,8 +12,7 @@
  *   4. Circular dependencies — import cycles that confuse navigation
  */
 
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { extname, join } from "node:path";
+import { getProductionFiles } from "../fs-utils.js";
 import type { CheckResult, Issue } from "../types.js";
 import { gradeFromScore } from "../types.js";
 
@@ -25,16 +24,13 @@ export function runContext(cwd: string): CheckResult {
 	const start = Date.now();
 	const issues: Issue[] = [];
 
-	// Collect source files with imports
-	const files: { path: string; content: string; imports: string[]; tokens: number }[] = [];
-	const dirs = ["src", "web/src"];
-	for (const dir of dirs) {
-		try {
-			collectFiles(join(cwd, dir), cwd, files);
-		} catch {
-			/* dir doesn't exist */
-		}
-	}
+	const rawFiles = getProductionFiles(cwd);
+	const files = rawFiles.map((f) => ({
+		path: f.path,
+		content: f.content,
+		imports: parseImports(f.content),
+		tokens: Math.round(f.content.length / CHARS_PER_TOKEN),
+	}));
 
 	if (files.length === 0) {
 		return {
@@ -82,15 +78,19 @@ export function runContext(cwd: string): CheckResult {
 	}
 
 	// ── 3. Circular dependency detection ──
+	// Build a lookup from extension-stripped path → actual path for matching
+	const pathLookup = new Map<string, string>();
+	for (const f of files) {
+		pathLookup.set(f.path.replace(/\.(ts|tsx|js|jsx)$/, ""), f.path);
+	}
+
 	const importGraph = new Map<string, Set<string>>();
 	for (const f of files) {
 		const deps = new Set<string>();
 		for (const imp of f.imports) {
-			// Resolve relative import to file path
 			const resolved = resolveImport(f.path, imp);
-			if (resolved && files.some((ff) => ff.path === resolved)) {
-				deps.add(resolved);
-			}
+			const match = resolved ? pathLookup.get(resolved) : null;
+			if (match) deps.add(match);
 		}
 		importGraph.set(f.path, deps);
 	}
@@ -162,24 +162,18 @@ function parseImports(content: string): string[] {
 }
 
 function resolveImport(fromPath: string, importPath: string): string | null {
-	// Simple resolution: join directory of fromPath with importPath
-	const dir = fromPath.includes("/") ? fromPath.replace(/\/[^/]+$/, "") : "";
-	let resolved = importPath;
-	if (importPath.startsWith("./")) {
-		resolved = dir ? `${dir}/${importPath.slice(2)}` : importPath.slice(2);
-	} else if (importPath.startsWith("../")) {
-		const parts = dir.split("/");
-		parts.pop();
-		resolved = [...parts, importPath.slice(3)].join("/");
+	const dirParts = fromPath.includes("/") ? fromPath.replace(/\/[^/]+$/, "").split("/") : [];
+	let rest = importPath;
+	if (rest.startsWith("./")) {
+		rest = rest.slice(2);
+	} else if (rest.startsWith("../")) {
+		while (rest.startsWith("../")) {
+			dirParts.pop();
+			rest = rest.slice(3);
+		}
 	}
-	// Strip extension and try common ones
-	resolved = resolved.replace(/\.(js|ts|tsx|jsx)$/, "");
-	const extensions = [".ts", ".tsx", ".js", ".jsx"];
-	for (const ext of extensions) {
-		if (resolved.endsWith(ext.replace(".", ""))) return resolved;
-	}
-	// Return with .ts as default assumption
-	return `${resolved}.ts`;
+	const resolved = dirParts.length > 0 ? `${dirParts.join("/")}/${rest}` : rest;
+	return resolved.replace(/\.(js|ts|tsx|jsx)$/, "");
 }
 
 // ── Cycle detection (DFS) ──
@@ -221,25 +215,4 @@ function findCycles(graph: Map<string, Set<string>>): string[][] {
 	}
 
 	return cycles;
-}
-
-// ── File collection ──
-
-function collectFiles(dir: string, cwd: string, out: { path: string; content: string; imports: string[]; tokens: number }[]): void {
-	for (const entry of readdirSync(dir)) {
-		if (entry === "node_modules" || entry === "dist" || entry === ".git") continue;
-		const full = join(dir, entry);
-		if (statSync(full).isDirectory()) {
-			collectFiles(full, cwd, out);
-		} else {
-			const ext = extname(entry);
-			if ([".ts", ".tsx", ".js", ".jsx"].includes(ext) && !entry.includes(".test.") && !entry.includes(".spec.")) {
-				const content = readFileSync(full, "utf-8");
-				const relPath = full.replace(`${cwd}/`, "");
-				const imports = parseImports(content);
-				const tokens = Math.round(content.length / CHARS_PER_TOKEN);
-				out.push({ path: relPath, content, imports, tokens });
-			}
-		}
-	}
 }
