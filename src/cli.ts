@@ -5,19 +5,23 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFile
 import { join, resolve } from "node:path";
 import { detectRepoUrl, detectStack } from "./detect.js";
 import { generateHTML } from "./report/html.js";
+import { runAccessibility } from "./runners/accessibility.js";
 import { runArchitecture } from "./runners/architecture.js";
+import { runCodeCoherence } from "./runners/code-coherence.js";
 import { runComplexity } from "./runners/complexity.js";
 import { runConfusion } from "./runners/confusion.js";
 import { runContext } from "./runners/context.js";
 import { runDependencies } from "./runners/dependencies.js";
+import { runDocCoherence } from "./runners/doc-coherence.js";
 import { runDocs } from "./runners/docs.js";
 import { runDuplication } from "./runners/duplication.js";
 import { runErrorHandling } from "./runners/error-handling.js";
+import { runIOSSafeArea } from "./runners/ios-safe-area.js";
 import { runLint } from "./runners/lint.js";
+import { runMetaTags } from "./runners/meta-tags.js";
+import { runPerformance } from "./runners/performance.js";
+import { runPWAManifest } from "./runners/pwa-manifest.js";
 import { runReact } from "./runners/react.js";
-import { runAccessibility } from "./runners/accessibility.js";
-import { runDocCoherence } from "./runners/doc-coherence.js";
-import { runCodeCoherence } from "./runners/code-coherence.js";
 import { runSecrets } from "./runners/secrets.js";
 import { runSecurity } from "./runners/security.js";
 import { runStandards } from "./runners/standards.js";
@@ -83,6 +87,10 @@ async function main() {
 		{ name: "error-handling", fn: () => runErrorHandling(cwd, stack) },
 		{ name: "react", fn: () => runReact(cwd, stack) },
 		{ name: "accessibility", fn: () => runAccessibility(cwd) },
+		{ name: "ios-safe-area", fn: () => runIOSSafeArea(cwd) },
+		{ name: "pwa-manifest", fn: () => runPWAManifest(cwd) },
+		{ name: "meta-tags", fn: () => runMetaTags(cwd) },
+		{ name: "performance", fn: () => runPerformance(cwd) },
 		{ name: "docs", fn: () => runDocs(cwd) },
 		// Testing
 		{ name: "testing", fn: () => runTesting(cwd, stack, skipTests) },

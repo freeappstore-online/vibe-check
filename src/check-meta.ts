@@ -57,7 +57,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Type Safety",
 		category: "Foundations",
 		priority: "medium",
-		weight: 3,
+		weight: 2,
 		description:
 			"Counts unsafe type patterns: 'as any' casts, explicit ': any' annotations, @ts-ignore directives, @ts-nocheck, and non-null assertions (!.). Each weakens the type system's protection.",
 		risk: "'as any' silences the type checker at that point — any bug the types would have caught now slips through. @ts-ignore and @ts-nocheck disable type checking entirely for a line or file. Accumulated 'any' usage correlates with higher defect density.",
@@ -69,7 +69,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Code Standards",
 		category: "Foundations",
 		priority: "medium",
-		weight: 3,
+		weight: 2,
 		description:
 			"Checks coding conventions: file naming (PascalCase for components, kebab-case for modules), file size limits (>300 lines flagged), code smells (console.log, var, ==, eval, innerHTML, TODO/FIXME), config hygiene (strict mode), and framework best practices (Tailwind vs inline styles).",
 		risk: "Large files are hard to review and test. console.log in production leaks internal data. var causes hoisting bugs. == causes type coercion surprises. eval/innerHTML are security vulnerabilities. Inconsistent naming makes the codebase harder to navigate.",
@@ -81,17 +81,19 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Error Handling",
 		category: "Quality",
 		priority: "high",
-		weight: 3,
-		description: "Detects poor error handling: empty catch blocks, throw with string literals, catch-and-rethrow without context, Promise.then() without .catch(), missing React Error Boundaries.",
+		weight: 2,
+		description:
+			"Detects poor error handling: empty catch blocks, throw with string literals, catch-and-rethrow without context, Promise.then() without .catch(), missing React Error Boundaries.",
 		risk: "Empty catch blocks silently swallow errors. throw 'string' loses stack traces. Missing Error Boundaries in React cause the entire app to crash on render errors.",
-		recommendation: "Handle or log every catch. Use throw new Error() for stack traces. Add Error Boundaries in React. Chain .catch() on promises.",
+		recommendation:
+			"Handle or log every catch. Use throw new Error() for stack traces. Add Error Boundaries in React. Chain .catch() on promises.",
 	},
 	complexity: {
 		name: "complexity",
 		label: "Complexity",
 		category: "Quality",
 		priority: "high",
-		weight: 5,
+		weight: 4,
 		description:
 			"Measures cognitive complexity of each function: how many branches (if/else/switch/for/while/ternary/&&/||) and how many lines. Functions over 60 lines or with complexity over 15 are flagged.",
 		risk: "Complex functions are the #1 source of bugs. Research shows defect density increases exponentially with cyclomatic complexity above 10 (McCabe, 1976). Complex code is also harder to review, test, and modify safely.",
@@ -103,7 +105,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Duplication",
 		category: "Quality",
 		priority: "medium",
-		weight: 5,
+		weight: 4,
 		description:
 			"Detects copy-pasted code blocks of 6+ lines across source files. Duplication is measured as a percentage of total source lines involved in duplicate blocks.",
 		risk: "Duplicated code means bugs must be fixed in multiple places. Miss one copy and the bug persists. DRY (Don't Repeat Yourself) violations increase maintenance cost linearly with each copy.",
@@ -115,7 +117,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Documentation",
 		category: "Quality",
 		priority: "low",
-		weight: 3,
+		weight: 2,
 		description:
 			"Checks README quality (existence, length, sections) and JSDoc coverage (what percentage of exported functions/classes have documentation comments).",
 		risk: "Undocumented code is hard to onboard to and easy to misuse. Missing README means new contributors can't get started. Undocumented exports become tribal knowledge that leaves when people leave.",
@@ -139,7 +141,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Secrets",
 		category: "Security",
 		priority: "critical",
-		weight: 6,
+		weight: 5,
 		description:
 			"Scans source files for hardcoded secrets: AWS keys, GitHub tokens, Stripe keys, OpenAI/Anthropic API keys, Google API keys, private keys, and generic secret patterns. Checks 13 regex patterns against every non-test source file.",
 		risk: "Hardcoded secrets in source code are the #1 cause of credential leaks. Once pushed to Git, secrets are in the history forever — even if deleted in a later commit. Leaked API keys can be exploited within minutes by automated scanners.",
@@ -175,7 +177,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Architecture",
 		category: "Architecture",
 		priority: "high",
-		weight: 6,
+		weight: 5,
 		description:
 			"Analyzes the import graph to detect structural problems: circular dependencies, god modules (imported by >50% of files), orphan modules (dead code), high fan-out (importing too many modules), and connector modules (high coupling). Generates an SVG architecture diagram.",
 		risk: "Circular dependencies create build order issues and make refactoring impossible without breaking changes. God modules become bottlenecks — any change ripples through the entire codebase. High coupling means you can't change one module without testing everything it touches.",
@@ -187,7 +189,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Confusion Index",
 		category: "LLM Readiness",
 		priority: "high",
-		weight: 7,
+		weight: 6,
 		description:
 			"Measures naming ambiguity that causes LLMs to misunderstand or edit the wrong code. Checks: file name confusability (Levenshtein distance + synonym detection), generic function/variable names, export name collisions across files, and ambiguous abbreviations.",
 		risk: "GPT-4o drops 28.6 percentage points on code summarization when names are ambiguous (arXiv:2510.03178). LLMs editing similar-named files is the #1 reported failure mode in AI-assisted development. Generic names like process(), handle(), data cause models to misinterpret intent.",
@@ -199,7 +201,7 @@ export const CHECK_META: Record<string, CheckMeta> = {
 		label: "Context Locality",
 		category: "LLM Readiness",
 		priority: "high",
-		weight: 6,
+		weight: 5,
 		description:
 			"Measures how self-contained code is for LLM consumption. Checks: token density per file, import count, circular dependencies, and context sinks (files that import many modules but export little). Based on the finding that LLMs lose 30%+ accuracy for information in the middle of long contexts.",
 		risk: "Files over ~4000 tokens exceed the 'sweet spot' for LLM attention (Liu et al. 2023 'Lost in the Middle'). Circular dependencies create infinite loops in LLM code navigation. Heavy import chains force LLMs to load many files, burning context window budget (Chroma 'Context Rot' 2025).",
@@ -228,7 +230,55 @@ export const CHECK_META: Record<string, CheckMeta> = {
 			"Checks common accessibility violations: images without alt text, click handlers on non-interactive elements without keyboard support, form controls without labels, autoFocus usage, positive tabIndex, and missing html lang attribute.",
 		risk: "1 in 4 adults has a disability (CDC). Missing alt text makes images invisible to screen readers. Click-only divs exclude keyboard users. Unlabeled inputs are unusable with assistive technology. Missing lang attribute breaks screen reader pronunciation.",
 		recommendation:
-			"Add alt text to all images (use alt=\"\" for decorative). Use <button> for clickable elements, not <div onClick>. Label all form controls with <label>, aria-label, or aria-labelledby. Set lang on <html>.",
+			'Add alt text to all images (use alt="" for decorative). Use <button> for clickable elements, not <div onClick>. Label all form controls with <label>, aria-label, or aria-labelledby. Set lang on <html>.',
+	},
+	performance: {
+		name: "performance",
+		label: "Performance",
+		category: "Quality",
+		priority: "high",
+		weight: 3,
+		description:
+			'Detects common performance anti-patterns: images without loading="lazy", useEffect without dependency array (runs every render), synchronous localStorage/sessionStorage in the render path, and excessive inline object literals in JSX props.',
+		risk: "Images without lazy loading delay initial paint — on slow connections this adds seconds. useEffect without deps causes infinite re-renders. Synchronous storage access blocks the main thread during render. Inline objects in JSX create new references every render, defeating React.memo.",
+		recommendation:
+			'Add loading="lazy" to offscreen images. Always provide a dependency array to useEffect (use [] for mount-only). Move storage reads to useEffect or useState initializers. Extract inline objects to constants or useMemo.',
+	},
+	"meta-tags": {
+		name: "meta-tags",
+		label: "Meta Tags",
+		category: "Quality",
+		priority: "high",
+		weight: 3,
+		description:
+			"Validates HTML head for discoverability: <title>, <meta description>, viewport, charset, favicon, Open Graph tags (og:title, og:description, og:image), and theme-color. These determine how the app appears in search results, social sharing, and browser UI.",
+		risk: "Missing description means blank snippets in Google. No Open Graph tags means shared links on Slack, Twitter, and iMessage show a bare URL with no preview. Missing viewport breaks mobile rendering. Missing favicon shows a generic browser icon.",
+		recommendation:
+			'Add <meta name="description">, <meta property="og:title/description/image">, <link rel="icon">, and <meta name="theme-color"> to your HTML <head>. Use a tool like metatags.io to preview how links will appear.',
+	},
+	"pwa-manifest": {
+		name: "pwa-manifest",
+		label: "PWA Manifest",
+		category: "Quality",
+		priority: "high",
+		weight: 2,
+		description:
+			"Validates that PWAs have a well-formed manifest.json with required fields (name, icons, start_url, display) and correct icon sizes (192x192, 512x512) for installability on mobile devices.",
+		risk: "Without a valid manifest, the app cannot be installed to the homescreen on Android or iOS. Missing icons result in generic placeholder icons. Missing start_url can cause the app to open at the wrong page.",
+		recommendation:
+			'Add a manifest.json with name, short_name, start_url, display (standalone), and icons array with 192x192 and 512x512 PNG entries. Link it in HTML with <link rel="manifest" href="/manifest.json">.',
+	},
+	"ios-safe-area": {
+		name: "ios-safe-area",
+		label: "iOS Safe Area",
+		category: "Quality",
+		priority: "high",
+		weight: 2,
+		description:
+			"Checks that fullscreen PWAs (viewport-fit=cover + apple-mobile-web-app-capable) include env(safe-area-inset-*) CSS to prevent content rendering behind the Dynamic Island and home indicator on iPhones.",
+		risk: "Without safe area padding, headers and bottom navigation bars are hidden behind the Dynamic Island (camera pill) and home indicator when the app is launched from the iPhone homescreen. The issue is invisible on desktop.",
+		recommendation:
+			"Add padding-top: env(safe-area-inset-top) and padding-bottom: env(safe-area-inset-bottom) to your root element. The env() values are zero on devices without a cutout, so there is no downside to including them unconditionally.",
 	},
 	"doc-coherence": {
 		name: "doc-coherence",

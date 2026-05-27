@@ -2,38 +2,39 @@
 
 ## Done
 
-### CLI (v0.11.0)
-- [x] 15 checks across 6 categories (Foundations, Quality, Testing, Architecture, Security, LLM Readiness)
-- [x] Auto-detect stack (TS/React/Vite/vitest/Biome/pnpm/npm/yarn/bun)
+### CLI (v0.18.0 — current)
+
+**25 checks across 7 categories:**
+- Foundations (21%): Structure, Lint, Type Check, Type Safety, Code Standards
+- Quality (29%): Complexity, Duplication, Error Handling, React Patterns, Accessibility, Performance, iOS Safe Area, PWA Manifest, Meta Tags, Docs
+- Testing (17%): Testing (6 sub-dimensions: pyramid, execution, coverage, pairing, quality, E2E)
+- Security (17%): Secrets, Security Patterns, Dependencies
+- Architecture (5%): Architecture (import graph + SVG diagram)
+- LLM Readiness (11%): Confusion Index, Context Locality
+- AI Analysis (premium, weight 0): Doc Coherence, Code Coherence
+
+**Reporting & infrastructure:**
 - [x] Self-contained HTML report — multi-page SPA with hash routing
-- [x] Top nav + sidebar navigation
-- [x] Sub-tabs for checks within categories
-- [x] Radar chart (6-axis category scores)
-- [x] Architecture SVG diagram (modules grouped by directory, import edges)
-- [x] Code heatmap page (colored density bars per file)
-- [x] Bar chart (all checks ranked by score)
-- [x] Category score cards on overview
+- [x] Top nav + sidebar navigation, sub-tabs per check
+- [x] Radar chart, architecture SVG diagram, code heatmap, score timeline
+- [x] Category score cards, bar chart, file map (top 20 files by issue count)
 - [x] Trend comparison vs previous run (score delta, new/fixed issues)
-- [x] History persistence (.vibe-check/history/, keeps last 30)
-- [x] Info panels with What/Risk/Fix for every check (with research citations)
+- [x] History persistence (.vibe-check/history/, last 30)
+- [x] Info panels with What/Risk/Fix for every check + research citations
 - [x] Priority badges (critical/high/medium/low)
 - [x] GitHub file links (auto-detected from git remote)
-- [x] Actionable prompts (📋 copy button generates fix prompt for Claude/Codex)
-- [x] Issues grouped by file on detail pages
-- [x] File map (top 20 files by issue count)
-- [x] Watch mode (--watch, re-scans on file changes)
-- [x] --skip-tests, --ci, --json flags
-- [x] Check metadata with weighted scoring (weights sum to 100, visible in report)
-- [x] 33 tests across 6 test files
+- [x] Actionable copy-prompt buttons per issue (for Claude/Codex)
+- [x] Watch mode (`--watch`), `--skip-tests`, `--ci`, `--json`, `--badge` flags
+- [x] Auto-detect stack (TS/React/Vite/vitest/Biome/pnpm/npm/yarn/bun)
+- [x] Check metadata with weighted scoring (weights sum to 100)
+- [x] 246 tests across 28 test files
 - [x] Zero runtime dependencies
-- [x] Published to npm as @vibecodeqa/cli (auto-deploy via GH Actions)
+- [x] Published to npm as @vibecodeqa/cli (auto-deploys on version bump)
 - [x] README with full documentation
-- [x] Confusion Index (novel — naming ambiguity for LLM comprehension)
-- [x] Context Locality (novel — file self-containment for LLM consumption)
-- [x] Architecture analysis (import graph, circular deps, god modules, orphans)
+- [x] All runners use shared `fs-utils.ts` (symlink protection, 1MB limit, consistent skip-dirs)
 
 ### Infrastructure
-- [x] npm: @vibecodeqa/cli (published, auto-deploys on version bump)
+- [x] npm: @vibecodeqa/cli
 - [x] GitHub org: vibecodeqa
 - [x] Landing page: vibecodeqa.online (CF Pages)
 - [x] Dashboard app: app.vibecodeqa.online (React SPA, CF Pages)
@@ -41,27 +42,20 @@
 
 ## Bugs to fix
 
-- [ ] Architecture SVG doesn't render when there are >40 modules — need to handle large codebases
-- [ ] Security check flags innerHTML in the HTML report generator itself (false positive for generated HTML)
-- [ ] Standards check flags console.log in test helpers (should exclude .test. files)
-- [ ] Duplication check reports false positives for similar import blocks
-- [ ] src/runners/tests.ts and src/runners/coverage.ts are unused (replaced by testing.ts) — remove
-- [ ] jscpd removed from deps but import might still be referenced somewhere
-- [ ] Version hardcoded in CLI — should read from package.json
+- [ ] Architecture SVG has fallback for >50 modules (renders a message) — could be smarter (clustering, zoom)
+- [ ] Duplication check can report many overlapping pairs for the same logical duplicate (e.g. 7 issues for one repeated block)
 - [ ] Report says "vibe-check" in some SVG tooltips — should be "vcqa"
 
 ## Next features — Free CLI
 
 ### High priority
-- [ ] Trend sparklines in report (read .vibe-check/history/, render mini line charts)
-- [ ] Score timeline chart (last 30 runs, visible on overview page)
-- [ ] Error handling check (empty catch blocks, missing React error boundaries, unhandled promises)
-- [ ] React-specific checks (hooks rules, conditional hooks, missing keys in .map())
+- [ ] Bundle size check (read `dist/` after build, warn on >500KB total or >250KB single chunk)
+- [ ] Service worker check (detect SW registration, offline capability)
+- [ ] Dead exports check (find `export`s nothing imports — complementary to architecture's orphan-module)
 - [ ] Interactive architecture graph (force-directed layout, draggable nodes)
 - [ ] Testing pyramid SVG (proportional triangle visualization)
 
 ### Medium priority
-- [ ] Accessibility check (img alt, button labels, click on div, aria-label)
 - [ ] "Vibe Score" readability metric (nesting depth, naming quality, comment ratio, whitespace)
 - [ ] AI code smell detection (over-documentation, copy-paste error handling, generic variable density)
 - [ ] Config drift detection (inconsistent tsconfig/biome across monorepo packages)
@@ -69,7 +63,6 @@
 - [ ] Developer experience score (setup steps, .env.example, contributing guide)
 - [ ] Coverage gauge cluster (4 arc charts for stmts/branches/lines/fns)
 - [ ] PDF export
-- [ ] Badge SVG generation for README embedding
 - [ ] SARIF output for GitHub Security tab integration
 
 ### Low priority
@@ -105,6 +98,8 @@
 - [ ] AI-generated fix suggestions per issue
 - [ ] Codebase summary generation (auto ARCHITECTURE.md)
 - [ ] Custom rules via natural language
+- [ ] Doc Coherence (currently placeholder — needs LLM integration)
+- [ ] Code Coherence (currently placeholder — needs LLM integration)
 
 ### Real-time monitoring
 - [ ] Watch mode that updates hosted dashboard live
@@ -114,9 +109,7 @@
 
 ## Refactoring needed
 
-- [ ] Many runners duplicate file-walking logic — migrate all to use fs-utils.ts
-- [ ] Remove unused src/runners/tests.ts and src/runners/coverage.ts
-- [ ] HTML report generator is 400+ lines — extract SVG builders to separate module
+- [ ] HTML report generator is 400+ lines — extract SVG builders to separate module (partially done — svg.ts exists)
 - [ ] Report HTML template has hardcoded styles — extract to CSS template
 - [ ] Architecture SVG generator should handle large graphs (clustering, zoom)
 - [ ] Clean up `as any` casts in runners (use proper types for CF API responses etc)

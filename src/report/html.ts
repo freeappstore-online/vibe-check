@@ -14,12 +14,27 @@
 import { getCheckMeta } from "../check-meta.js";
 import type { CheckResult, VibeReport } from "../types.js";
 import { e, fileLink, gc } from "./components.js";
-import { categoryPages, filesPage, issuesPage, overviewPage, type CatScore } from "./pages.js";
+import { type CatScore, categoryPages, filesPage, issuesPage, overviewPage } from "./pages.js";
 import { CSS } from "./styles.js";
 
 const GROUPS: { id: string; label: string; checks: string[] }[] = [
 	{ id: "foundations", label: "Foundations", checks: ["structure", "lint", "types", "type-safety", "standards"] },
-	{ id: "quality", label: "Quality", checks: ["complexity", "duplication", "error-handling", "react", "accessibility", "docs"] },
+	{
+		id: "quality",
+		label: "Quality",
+		checks: [
+			"complexity",
+			"duplication",
+			"error-handling",
+			"react",
+			"accessibility",
+			"performance",
+			"ios-safe-area",
+			"pwa-manifest",
+			"meta-tags",
+			"docs",
+		],
+	},
 	{ id: "testing", label: "Testing", checks: ["testing"] },
 	{ id: "arch", label: "Architecture", checks: ["architecture"] },
 	{ id: "security", label: "Security", checks: ["secrets", "security", "dependencies"] },
@@ -64,10 +79,7 @@ export function generateHTML(report: VibeReport, historyDir?: string): string {
 	});
 
 	// ── Primary nav (dimensions) ──
-	const dimNavItems = [
-		{ id: "overview", label: "Overview" },
-		...GROUPS.map((g) => ({ id: g.id, label: g.label })),
-	];
+	const dimNavItems = [{ id: "overview", label: "Overview" }, ...GROUPS.map((g) => ({ id: g.id, label: g.label }))];
 	const dimNav = dimNavItems.map((t) => `<a class="tn" data-page="${t.id}" onclick="go('${t.id}')">${t.label}</a>`).join("");
 
 	// ── Secondary nav (data views, right-aligned) ──
@@ -83,13 +95,16 @@ export function generateHTML(report: VibeReport, historyDir?: string): string {
 		.map((cs) => {
 			const isPremiumGroup = cs.checks.every((c) => (c.details as any).comingSoon);
 			const clr = isPremiumGroup ? "#6366f1" : gc(cs.avg >= 90 ? "A" : cs.avg >= 75 ? "B" : cs.avg >= 60 ? "C" : cs.avg >= 40 ? "D" : "F");
-			const scoreLabel = isPremiumGroup ? `<span class="pro-badge" style="font-size:0.5rem;padding:0.08rem 0.35rem">PRO</span>` : `<span style="color:${clr}">${cs.avg}</span>`;
+			const scoreLabel = isPremiumGroup
+				? `<span class="pro-badge" style="font-size:0.5rem;padding:0.08rem 0.35rem">PRO</span>`
+				: `<span style="color:${clr}">${cs.avg}</span>`;
 			return `<div class="side-section"><a class="side-cat" onclick="go('${cs.id}')">${cs.label} ${scoreLabel}</a>${cs.checks
 				.map((c) => {
 					const sk = (c.details as any).skipped;
 					const premium = (c.details as any).comingSoon;
 					const meta = getCheckMeta(c.name);
-					if (premium) return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:#6366f1">PRO</span> ${e(meta.label)}</a>`;
+					if (premium)
+						return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:#6366f1">PRO</span> ${e(meta.label)}</a>`;
 					return `<a class="side-check" onclick="go('${cs.id}')" title="${e(meta.label)}"><span style="color:${sk ? "#555" : gc(c.grade)}">${sk ? "\u2014" : c.grade}</span> ${e(meta.label)}</a>`;
 				})
 				.join("")}</div>`;

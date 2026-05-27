@@ -2,17 +2,17 @@
 
 **Code health scanner for the AI coding era.**
 
-One command. 15 checks. Full report. Zero config.
+One command. 25 checks. Full report. Zero config.
 
 ```bash
 npx @vibecodeqa/cli
 ```
 
-![Grade](https://img.shields.io/badge/checks-15-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-first-3178C6) ![License](https://img.shields.io/badge/license-MIT-green)
+![Grade](https://img.shields.io/badge/checks-25-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-first-3178C6) ![License](https://img.shields.io/badge/license-MIT-green)
 
 ## What it does
 
-vcqa scans your TypeScript/JavaScript codebase and produces a scored health report with actionable findings. It auto-detects your stack (React, Vite, vitest, Biome, etc.) and runs 15 checks across 6 categories.
+vcqa scans your TypeScript/JavaScript codebase and produces a scored health report with actionable findings. It auto-detects your stack (React, Vite, vitest, Biome, etc.) and runs 25 checks across 7 categories — including PWA-specific checks (manifest, iOS safe areas, meta tags) that other tools miss.
 
 The output is a self-contained HTML report with radar charts, architecture diagrams, file heatmaps, and drill-down issue lists — all navigable via sidebar and tab navigation.
 
@@ -45,25 +45,32 @@ Output goes to `.vibe-check/`:
 
 ## Checks
 
-### Foundations (23%)
+### Foundations (21%)
 
 | Check | Weight | What it measures |
 |-------|--------|-----------------|
 | **Structure** | 6% | Standard files (package.json, tsconfig, LICENSE, README, .gitignore), lockfile, test-to-source ratio |
 | **Lint** | 5% | Biome or ESLint errors/warnings (auto-detected) |
-| **Types** | 6% | TypeScript compilation errors (`tsc --noEmit`) |
-| **Type Safety** | 3% | `as any`, `: any`, `@ts-ignore`, `@ts-nocheck` counts |
-| **Standards** | 3% | File naming, large files (>300 lines), code smells (console.log, var, ==, eval, innerHTML), config hygiene |
+| **Type Check** | 6% | TypeScript compilation errors (`tsc --noEmit`) |
+| **Type Safety** | 2% | `as any`, `: any`, `@ts-ignore`, `@ts-nocheck` counts |
+| **Code Standards** | 2% | File naming, large files (>300 lines), code smells (console.log, var, ==, eval, innerHTML), config hygiene |
 
-### Quality (15%)
+### Quality (29%)
 
 | Check | Weight | What it measures |
 |-------|--------|-----------------|
-| **Complexity** | 7% | Cognitive complexity per function, functions >60 lines |
-| **Duplication** | 5% | Copy-pasted 6+ line blocks |
-| **Docs** | 3% | README quality, JSDoc coverage of exports |
+| **Complexity** | 4% | Cognitive complexity per function, functions >60 lines |
+| **Duplication** | 4% | Copy-pasted 6+ line blocks |
+| **Error Handling** | 2% | Empty catch blocks, throw string literals, missing React Error Boundary |
+| **React Patterns** | 3% | Conditional hooks, missing keys in .map(), prop spreading on DOM, index as key |
+| **Accessibility** | 4% | img alt, click handlers on divs, form labels, autoFocus, positive tabIndex, html lang |
+| **Performance** | 3% | img without loading="lazy", useEffect without deps, sync storage in render, inline objects in JSX |
+| **PWA Manifest** | 2% | Validates manifest.json (name, icons, start_url, display) and 192/512 icon sizes |
+| **iOS Safe Area** | 2% | Fullscreen PWAs must use `env(safe-area-inset-*)` to clear the Dynamic Island |
+| **Meta Tags** | 3% | description, Open Graph, favicon, viewport, charset, theme-color |
+| **Docs** | 2% | README quality, JSDoc coverage of exports |
 
-### Testing (22%)
+### Testing (17%)
 
 One deep check with 6 sub-dimensions:
 
@@ -74,28 +81,28 @@ One deep check with 6 sub-dimensions:
 - **Quality** — assertion density, mock ratio, snapshot ratio
 - **E2E detection** — Playwright/Cypress configured?
 
-### Architecture (7%)
+### Architecture (5%)
 
 | Check | Weight | What it measures |
 |-------|--------|-----------------|
-| **Architecture** | 7% | Import graph, circular deps, god modules, orphan files, fan-out, SVG diagram |
+| **Architecture** | 5% | Import graph, circular deps, god modules, orphan files, fan-out, SVG diagram |
 
-### Security (18%)
+### Security (17%)
 
 | Check | Weight | What it measures |
 |-------|--------|-----------------|
-| **Secrets** | 6% | 13 patterns (AWS, GitHub, Stripe, OpenAI, private keys) |
-| **Security** | 7% | 15 CWE-mapped patterns (XSS, injection, crypto, SSRF) |
-| **Dependencies** | 5% | npm audit vulnerabilities + outdated packages |
+| **Secrets** | 5% | 13 patterns (AWS, GitHub, Stripe, OpenAI, Anthropic, private keys) |
+| **Security Patterns** | 7% | 15 CWE-mapped patterns (XSS, injection, crypto, SSRF, path traversal) |
+| **Dependencies** | 5% | npm/pnpm audit vulnerabilities + outdated packages |
 
-### LLM Readiness (15%)
+### LLM Readiness (11%)
 
 Novel checks that no other tool offers:
 
 | Check | Weight | What it measures |
 |-------|--------|-----------------|
-| **Confusion Index** | 8% | File name similarity, generic names, export collisions, ambiguous abbreviations |
-| **Context Locality** | 7% | Token density, import depth, circular deps, context sinks |
+| **Confusion Index** | 6% | File name similarity, generic names, export collisions, ambiguous abbreviations |
+| **Context Locality** | 5% | Token density, import depth, circular deps, context sinks |
 
 **Research backing:**
 - "When Names Disappear" (arXiv:2510.03178): GPT-4o drops 28.6% on summarization with ambiguous names
